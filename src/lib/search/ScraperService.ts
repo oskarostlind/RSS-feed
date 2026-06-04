@@ -65,7 +65,10 @@ export class ScraperService {
     }
 
     try {
-      const html = await this.fetchHtml(searchUrl, { renderJs: false });
+      const html = await this.fetchHtml(searchUrl, {
+        renderJs: false,
+        customGoogle: true,
+      });
       return parseGoogleSearchResults(html, trimmed);
     } catch (error) {
       console.error(
@@ -90,12 +93,13 @@ export class ScraperService {
 
   private async fetchHtml(
     targetUrl: string,
-    options: { renderJs: boolean },
+    options: { renderJs: boolean; customGoogle: boolean },
   ): Promise<string> {
     const params = new URLSearchParams({
       api_key: this.getScrapingBeeApiKey(),
       url: targetUrl,
       render_js: options.renderJs ? "true" : "false",
+      custom_google: options.customGoogle ? "true" : "false",
     });
 
     const scrapingBeeUrl = `${SCRAPINGBEE_API_URL}?${params.toString()}`;
