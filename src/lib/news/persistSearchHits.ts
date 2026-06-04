@@ -1,4 +1,4 @@
-import { NewsItemStatus } from "@/generated/prisma/client";
+import { NewsItemStatus } from "@/generated/prisma/enums";
 import { prisma } from "@/lib/prisma";
 import type { SearchHit } from "@/lib/search/types";
 
@@ -19,6 +19,7 @@ export async function persistSearchHitsAsPending(
     data: hits.map((hit) => ({
       companyId,
       title: hit.title,
+      snippet: hit.snippet,
       url: hit.url,
       publishedAt: hit.publishedAt,
       status: NewsItemStatus.PENDING,

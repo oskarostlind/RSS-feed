@@ -12,6 +12,7 @@ datasource db {
 enum NewsItemStatus {
   PENDING
   CONFIRMED
+  REJECTED
 }
 
 model User {
@@ -50,6 +51,7 @@ model NewsItem {
   id          String         @id @default(cuid())
   companyId   String
   title       String
+  snippet     String?
   url         String         @unique
   publishedAt DateTime?
   status      NewsItemStatus @default(PENDING)
