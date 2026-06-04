@@ -4,26 +4,34 @@ import { revalidatePath } from "next/cache";
 import { NewsItemStatus } from "@/generated/prisma/enums";
 import { prisma } from "@/lib/prisma";
 
+function revalidateNewsViews(companyId: string): void {
+  revalidatePath("/dashboard");
+  revalidatePath("/dashboard/companies");
+  revalidatePath(`/dashboard/companies/${companyId}`);
+}
+
 async function updatePendingNewsItemStatus(
   newsItemId: string,
   status: typeof NewsItemStatus.CONFIRMED | typeof NewsItemStatus.REJECTED,
 ): Promise<void> {
-  const updated = await prisma.newsItem.updateMany({
-    where: {
-      id: newsItemId,
-      status: NewsItemStatus.PENDING,
-    },
-    data: { status },
+  const existing = await prisma.newsItem.findUnique({
+    where: { id: newsItemId },
+    select: { companyId: true, status: true },
   });
 
-  if (updated.count === 0) {
+  if (!existing || existing.status !== NewsItemStatus.PENDING) {
     console.warn(
       `News item ${newsItemId} was not updated (missing or not pending).`,
     );
     return;
   }
 
-  revalidatePath("/dashboard");
+  await prisma.newsItem.update({
+    where: { id: newsItemId },
+    data: { status },
+  });
+
+  revalidateNewsViews(existing.companyId);
 }
 
 export async function approveNewsItem(newsItemId: string): Promise<void> {
