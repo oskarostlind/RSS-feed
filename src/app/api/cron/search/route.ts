@@ -7,6 +7,10 @@ import {
 } from "@/lib/email/EmailService";
 import { executeDiscoveryJob } from "@/lib/search/executeDiscoveryJob";
 import { SearchServiceError } from "@/lib/search/SearchService";
+import {
+  formatErrorCause,
+  formatErrorMessage,
+} from "@/lib/utils/formatError";
 
 export const maxDuration = 60;
 
@@ -34,12 +38,14 @@ export async function GET(request: Request): Promise<NextResponse> {
           `Morning summary email sent to admin (${sendResult.id}) with ${result.createdNewsItems.length} new articles.`,
         );
       } catch (error) {
-        if (error instanceof EmailServiceError) {
-          emailError = error.message;
-          console.error("Failed to send morning summary email:", error);
-        } else {
-          emailError = "Failed to send morning summary email";
-          console.error("Failed to send morning summary email:", error);
+        emailError =
+          error instanceof EmailServiceError
+            ? error.message
+            : formatErrorMessage(error);
+        const causeMessage = formatErrorCause(error);
+        console.error("Failed to send morning summary email:", error);
+        if (causeMessage) {
+          console.error("Morning summary email error cause:", causeMessage);
         }
       }
     } else {

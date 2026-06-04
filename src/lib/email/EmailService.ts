@@ -3,6 +3,10 @@ import {
   MorningSummaryEmail,
   type MorningSummaryNewsItem,
 } from "@/emails/MorningSummaryEmail";
+import {
+  formatErrorCause,
+  formatErrorMessage,
+} from "@/lib/utils/formatError";
 
 const DEFAULT_FROM_EMAIL = "onboarding@resend.dev";
 
@@ -95,9 +99,11 @@ export class EmailService {
         throw error;
       }
 
-      throw new EmailServiceError("Failed to send morning summary email", {
-        cause: error,
-      });
+      const causeMessage = formatErrorCause(error) ?? formatErrorMessage(error);
+      throw new EmailServiceError(
+        `Failed to send morning summary email: ${causeMessage}`,
+        { cause: error },
+      );
     }
   }
 }
