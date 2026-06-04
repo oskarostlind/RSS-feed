@@ -4,27 +4,14 @@ import { verifyCronSecret } from "@/lib/auth/verifyCronSecret";
 import { executeDiscoveryJob } from "@/lib/search/executeDiscoveryJob";
 import { SearchServiceError } from "@/lib/search/SearchService";
 
-interface ManualSearchBody {
-  companyId?: string;
-}
-
-export async function POST(request: Request): Promise<NextResponse> {
+export async function GET(request: Request): Promise<NextResponse> {
   const unauthorized = verifyCronSecret(request);
   if (unauthorized) {
     return unauthorized;
   }
 
   try {
-    let companyId: string | undefined;
-
-    try {
-      const body = (await request.json()) as ManualSearchBody;
-      companyId = body.companyId;
-    } catch {
-      companyId = undefined;
-    }
-
-    const result = await executeDiscoveryJob(companyId);
+    const result = await executeDiscoveryJob();
     return NextResponse.json(result);
   } catch (error) {
     if (error instanceof Error && error.message === "COMPANY_NOT_FOUND") {
@@ -44,7 +31,7 @@ export async function POST(request: Request): Promise<NextResponse> {
       });
     }
 
-    console.error("Manual search failed:", error);
+    console.error("Cron discovery job failed:", error);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 },

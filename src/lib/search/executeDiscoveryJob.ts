@@ -1,0 +1,47 @@
+import { prisma } from "@/lib/prisma";
+import { ScraperService } from "@/lib/search/ScraperService";
+import { SearchService } from "@/lib/search/SearchService";
+import {
+  runCompanyDiscovery,
+  type CompanyDiscoveryResult,
+} from "@/lib/search/runCompanyDiscovery";
+
+export interface DiscoveryJobResult {
+  companiesProcessed: number;
+  results: CompanyDiscoveryResult[];
+}
+
+export async function executeDiscoveryJob(
+  companyId?: string,
+): Promise<DiscoveryJobResult> {
+  const companies = companyId
+    ? await prisma.company.findMany({ where: { id: companyId } })
+    : await prisma.company.findMany();
+
+  if (companyId && companies.length === 0) {
+    throw new Error("COMPANY_NOT_FOUND");
+  }
+
+  if (companies.length === 0) {
+    throw new Error("NO_COMPANIES");
+  }
+
+  const searchService = SearchService.fromEnv();
+  const scraperService = new ScraperService();
+  const results: CompanyDiscoveryResult[] = [];
+
+  for (const company of companies) {
+    const result = await runCompanyDiscovery(
+      company.id,
+      company.name,
+      searchService,
+      scraperService,
+    );
+    results.push(result);
+  }
+
+  return {
+    companiesProcessed: companies.length,
+    results,
+  };
+}
