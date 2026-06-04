@@ -1,3 +1,4 @@
+import type { MorningSummaryNewsItem } from "@/lib/email/EmailService";
 import { persistSearchHitsAsPending } from "@/lib/news/persistSearchHits";
 import type { SearchHit } from "@/lib/search/types";
 import { ScraperService } from "@/lib/search/ScraperService";
@@ -11,6 +12,7 @@ export interface CompanyDiscoveryResult {
   found: number;
   created: number;
   skipped: number;
+  createdItems: MorningSummaryNewsItem[];
 }
 
 function dedupeHitsByUrl(hits: SearchHit[]): SearchHit[] {
@@ -38,7 +40,7 @@ export async function runCompanyDiscovery(
   const gnewsHits = await searchService.searchForCompany(companyName);
   const scrapeHits = await scraperService.scrapeForCompany(companyName);
   const mergedHits = dedupeHitsByUrl([...gnewsHits, ...scrapeHits]);
-  const { created, skipped } = await persistSearchHitsAsPending(
+  const { created, skipped, createdItems } = await persistSearchHitsAsPending(
     companyId,
     mergedHits,
   );
@@ -51,5 +53,9 @@ export async function runCompanyDiscovery(
     found: mergedHits.length,
     created,
     skipped,
+    createdItems: createdItems.map((item) => ({
+      ...item,
+      companyName,
+    })),
   };
 }

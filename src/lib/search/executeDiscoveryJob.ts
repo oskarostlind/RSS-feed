@@ -1,3 +1,4 @@
+import type { MorningSummaryNewsItem } from "@/lib/email/EmailService";
 import { prisma } from "@/lib/prisma";
 import { ScraperService } from "@/lib/search/ScraperService";
 import { SearchService } from "@/lib/search/SearchService";
@@ -9,6 +10,7 @@ import {
 export interface DiscoveryJobResult {
   companiesProcessed: number;
   results: CompanyDiscoveryResult[];
+  createdNewsItems: MorningSummaryNewsItem[];
 }
 
 export async function executeDiscoveryJob(
@@ -40,8 +42,11 @@ export async function executeDiscoveryJob(
     results.push(result);
   }
 
+  const createdNewsItems = results.flatMap((result) => result.createdItems);
+
   return {
     companiesProcessed: companies.length,
     results,
+    createdNewsItems,
   };
 }
