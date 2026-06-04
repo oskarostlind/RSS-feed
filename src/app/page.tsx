@@ -10,12 +10,20 @@ export default function Home() {
         <p className="mt-3 text-zinc-600 dark:text-zinc-400">
           MVP för proaktiv bevakning av företagsomnämnanden i svensk nyhetsmedia.
         </p>
-        <Link
-          href="/dashboard"
-          className="mt-8 inline-flex h-12 items-center justify-center rounded-lg bg-zinc-900 px-6 text-sm font-medium text-white transition-colors hover:bg-zinc-700 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300"
-        >
-          Öppna inkorgen
-        </Link>
+        <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:justify-center">
+          <Link
+            href="/dashboard"
+            className="inline-flex h-12 items-center justify-center rounded-lg bg-zinc-900 px-6 text-sm font-medium text-white transition-colors hover:bg-zinc-700 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300"
+          >
+            Öppna inkorgen
+          </Link>
+          <Link
+            href="/dashboard/companies"
+            className="inline-flex h-12 items-center justify-center rounded-lg border border-zinc-300 px-6 text-sm font-medium text-zinc-800 transition-colors hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-900"
+          >
+            Bevakade företag
+          </Link>
+        </div>
       </main>
     </div>
   );

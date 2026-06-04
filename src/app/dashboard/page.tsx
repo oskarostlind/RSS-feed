@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { NewsInboxCard } from "@/app/dashboard/_components/NewsInboxCard";
 import { getPendingNewsItems } from "@/lib/news/queries";
 
@@ -6,7 +5,7 @@ export default async function DashboardPage() {
   const pendingItems = await getPendingNewsItems();
 
   return (
-    <div className="min-h-full bg-zinc-50 dark:bg-black">
+    <>
       <header className="border-b border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-950">
         <div className="mx-auto flex max-w-3xl items-center justify-between px-6 py-6">
           <div>
@@ -43,13 +42,7 @@ export default async function DashboardPage() {
             ))}
           </ul>
         )}
-
-        <p className="mt-8 text-center text-sm text-zinc-500 dark:text-zinc-400">
-          <Link href="/" className="hover:underline">
-            ← Tillbaka till startsidan
-          </Link>
-        </p>
       </main>
-    </div>
+    </>
   );
 }
