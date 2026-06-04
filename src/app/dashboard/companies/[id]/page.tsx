@@ -3,10 +3,7 @@ import { notFound } from "next/navigation";
 import { CompanyHistoryItem } from "@/app/dashboard/companies/_components/CompanyHistoryItem";
 import { CompanyNewsSearchButton } from "@/app/dashboard/companies/_components/CompanyNewsSearchButton";
 import { NewsItemStatus } from "@/generated/prisma/enums";
-import {
-  getCompanyById,
-  getCompanyNewsHistory,
-} from "@/lib/companies/queries";
+import { getCompanyWithNewsItems } from "@/lib/companies/queries";
 
 interface CompanyDetailPageProps {
   params: Promise<{ id: string }>;
@@ -16,17 +13,18 @@ export default async function CompanyDetailPage({
   params,
 }: CompanyDetailPageProps) {
   const { id } = await params;
-  const [company, history] = await Promise.all([
-    getCompanyById(id),
-    getCompanyNewsHistory(id),
-  ]);
+  const company = await getCompanyWithNewsItems(id);
 
   if (!company) {
     notFound();
   }
 
-  const unreadCount = history.filter(
+  const { newsItems } = company;
+  const unreadCount = newsItems.filter(
     (item) => item.status === NewsItemStatus.PENDING,
+  ).length;
+  const confirmedCount = newsItems.filter(
+    (item) => item.status === NewsItemStatus.CONFIRMED,
   ).length;
 
   return (
@@ -35,7 +33,7 @@ export default async function CompanyDetailPage({
         <div className="mx-auto max-w-3xl px-6 py-6">
           <Link
             href="/dashboard/companies"
-            className="text-sm text-zinc-500 transition-colors hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200"
+            className="inline-flex items-center text-sm text-zinc-500 transition-colors hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200"
           >
             ← Tillbaka till portföljen
           </Link>
@@ -43,8 +41,9 @@ export default async function CompanyDetailPage({
             {company.name}
           </h1>
           <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-            Artikelhistorik senaste 30 dagarna · {unreadCount} olästa /{" "}
-            {history.length} totalt
+            {newsItems.length}{" "}
+            {newsItems.length === 1 ? "artikel" : "artiklar"} · {unreadCount}{" "}
+            olästa · {confirmedCount} godkända
           </p>
           <div className="mt-4">
             <CompanyNewsSearchButton
@@ -56,7 +55,7 @@ export default async function CompanyDetailPage({
       </header>
 
       <main className="mx-auto max-w-3xl px-6 py-8">
-        {history.length === 0 ? (
+        {newsItems.length === 0 ? (
           <div className="rounded-xl border border-dashed border-zinc-300 bg-white px-8 py-16 text-center dark:border-zinc-700 dark:bg-zinc-950">
             <p className="text-lg font-medium text-zinc-900 dark:text-zinc-50">
               Ingen historik ännu
@@ -66,8 +65,8 @@ export default async function CompanyDetailPage({
             </p>
           </div>
         ) : (
-          <ul className="flex flex-col gap-4">
-            {history.map((item) => (
+          <ul className="grid grid-cols-1 gap-4">
+            {newsItems.map((item) => (
               <CompanyHistoryItem key={item.id} item={item} />
             ))}
           </ul>

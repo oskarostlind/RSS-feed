@@ -19,7 +19,7 @@ const STATUS_CONFIG: Record<
       "bg-emerald-100 text-emerald-900 dark:bg-emerald-950 dark:text-emerald-200",
   },
   [NewsItemStatus.REJECTED]: {
-    label: "Avvisad",
+    label: "Ignorerad",
     className: "bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300",
   },
 };

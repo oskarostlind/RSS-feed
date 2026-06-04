@@ -14,7 +14,7 @@ export function CompanyHistoryItem({ item }: CompanyHistoryItemProps) {
 
   return (
     <li className="rounded-xl border border-zinc-200 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
-      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <NewsStatusBadge status={item.status} />
         <time
           dateTime={(item.publishedAt ?? item.createdAt).toISOString()}
@@ -25,19 +25,21 @@ export function CompanyHistoryItem({ item }: CompanyHistoryItemProps) {
       </div>
 
       <h2 className="text-base font-semibold leading-snug text-zinc-900 dark:text-zinc-50">
-        <Link
-          href={item.url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="hover:underline"
-        >
-          {item.title}
-        </Link>
+        {item.title}
       </h2>
 
-      <p className="mt-2 line-clamp-2 text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">
+      <p className="mt-2 text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">
         {snippet}
       </p>
+
+      <Link
+        href={item.url}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="mt-4 inline-flex text-sm font-medium text-emerald-700 transition-colors hover:text-emerald-800 dark:text-emerald-400 dark:hover:text-emerald-300"
+      >
+        Läs originalartikel →
+      </Link>
     </li>
   );
 }

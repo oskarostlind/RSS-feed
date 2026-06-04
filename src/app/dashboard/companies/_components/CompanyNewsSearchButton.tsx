@@ -14,6 +14,10 @@ function formatResultMessage(
   created: number,
   found: number,
 ): string {
+  if (created === 0 && found === 0) {
+    return `Sökning klar för ${companyName}. Inga träffar — kontrollera GNEWS_API_KEY och SCRAPINGBEE_API_KEY.`;
+  }
+
   if (created === 0) {
     return `Sökning klar för ${companyName}. Inga nya artiklar (${found} träffar, inga nya att spara).`;
   }

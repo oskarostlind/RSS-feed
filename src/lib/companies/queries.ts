@@ -1,19 +1,12 @@
 import { NewsItemStatus } from "@/generated/prisma/enums";
 import { prisma } from "@/lib/prisma";
 
-const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
-
 export interface CompanyRow {
   id: string;
   name: string;
   createdAt: Date;
   unreadCount: number;
   totalCount: number;
-}
-
-export interface CompanyDetail {
-  id: string;
-  name: string;
 }
 
 export interface CompanyNewsHistoryRow {
@@ -26,8 +19,10 @@ export interface CompanyNewsHistoryRow {
   createdAt: Date;
 }
 
-export function getThirtyDaysAgo(): Date {
-  return new Date(Date.now() - THIRTY_DAYS_MS);
+export interface CompanyWithNewsItems {
+  id: string;
+  name: string;
+  newsItems: CompanyNewsHistoryRow[];
 }
 
 export async function getAllCompanies(): Promise<CompanyRow[]> {
@@ -63,34 +58,26 @@ export async function getAllCompanies(): Promise<CompanyRow[]> {
   }));
 }
 
-export async function getCompanyById(
+export async function getCompanyWithNewsItems(
   companyId: string,
-): Promise<CompanyDetail | null> {
+): Promise<CompanyWithNewsItems | null> {
   return prisma.company.findUnique({
     where: { id: companyId },
-    select: { id: true, name: true },
-  });
-}
-
-export async function getCompanyNewsHistory(
-  companyId: string,
-): Promise<CompanyNewsHistoryRow[]> {
-  const since = getThirtyDaysAgo();
-
-  return prisma.newsItem.findMany({
-    where: {
-      companyId,
-      OR: [{ createdAt: { gte: since } }, { publishedAt: { gte: since } }],
-    },
     select: {
       id: true,
-      title: true,
-      snippet: true,
-      url: true,
-      status: true,
-      publishedAt: true,
-      createdAt: true,
+      name: true,
+      newsItems: {
+        select: {
+          id: true,
+          title: true,
+          snippet: true,
+          url: true,
+          status: true,
+          publishedAt: true,
+          createdAt: true,
+        },
+        orderBy: [{ publishedAt: "desc" }, { createdAt: "desc" }],
+      },
     },
-    orderBy: [{ publishedAt: "desc" }, { createdAt: "desc" }],
   });
 }

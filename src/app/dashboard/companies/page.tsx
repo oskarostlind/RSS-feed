@@ -34,7 +34,8 @@ export default async function CompaniesPage({
             Bevakade företag
           </h1>
           <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-            Hantera vilka företag systemet ska söka nyheter för.
+            Hantera vilka företag systemet ska söka nyheter för. Klicka på ett
+            företagsnamn för att läsa artikelhistorik.
           </p>
         </div>
       </header>
