@@ -8,6 +8,8 @@ import {
 import { executeDiscoveryJob } from "@/lib/search/executeDiscoveryJob";
 import { SearchServiceError } from "@/lib/search/SearchService";
 
+export const maxDuration = 60;
+
 export async function GET(request: Request): Promise<NextResponse> {
   const unauthorized = verifyCronSecret(request);
   if (unauthorized) {
