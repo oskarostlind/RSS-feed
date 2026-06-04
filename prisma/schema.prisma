@@ -1,0 +1,75 @@
+// Omvärldsbevakare — datamodell (MVP)
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum NewsItemStatus {
+  PENDING
+  CONFIRMED
+}
+
+model User {
+  id            String         @id @default(cuid())
+  email         String         @unique
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  subscriptions Subscription[]
+}
+
+model Company {
+  id                String             @id @default(cuid())
+  name              String
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  subscriptions     Subscription[]
+  newsItems         NewsItem[]
+  discoveredSources DiscoveredSource[]
+}
+
+model Subscription {
+  id        String   @id @default(cuid())
+  userId    String
+  companyId String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, companyId])
+  @@index([userId])
+  @@index([companyId])
+}
+
+model NewsItem {
+  id          String         @id @default(cuid())
+  companyId   String
+  title       String
+  url         String         @unique
+  publishedAt DateTime?
+  status      NewsItemStatus @default(PENDING)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  company     Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
+  @@index([status])
+}
+
+model DiscoveredSource {
+  id         String   @id @default(cuid())
+  companyId  String
+  domain     String
+  isApproved Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  company    Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, domain])
+  @@index([companyId])
+}
