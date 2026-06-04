@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { CompanyHistoryItem } from "@/app/dashboard/companies/_components/CompanyHistoryItem";
 import { CompanyNewsSearchButton } from "@/app/dashboard/companies/_components/CompanyNewsSearchButton";
 import { NewsItemStatus } from "@/generated/prisma/enums";
+import { auth } from "@/lib/auth";
 import { getCompanyWithNewsItems } from "@/lib/companies/queries";
 
 interface CompanyDetailPageProps {
@@ -12,8 +13,15 @@ interface CompanyDetailPageProps {
 export default async function CompanyDetailPage({
   params,
 }: CompanyDetailPageProps) {
+  const session = await auth();
+  const userId = session?.user?.id;
+
+  if (!userId) {
+    return null;
+  }
+
   const { id } = await params;
-  const company = await getCompanyWithNewsItems(id);
+  const company = await getCompanyWithNewsItems(id, userId);
 
   if (!company) {
     notFound();

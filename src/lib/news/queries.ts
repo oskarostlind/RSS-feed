@@ -13,9 +13,14 @@ export interface PendingNewsItemRow {
   };
 }
 
-export async function getPendingNewsItems(): Promise<PendingNewsItemRow[]> {
+export async function getPendingNewsItems(
+  userId: string,
+): Promise<PendingNewsItemRow[]> {
   return prisma.newsItem.findMany({
-    where: { status: NewsItemStatus.PENDING },
+    where: {
+      status: NewsItemStatus.PENDING,
+      company: { userId },
+    },
     select: {
       id: true,
       title: true,

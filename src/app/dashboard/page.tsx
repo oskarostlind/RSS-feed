@@ -1,8 +1,16 @@
 import { NewsInboxCard } from "@/app/dashboard/_components/NewsInboxCard";
+import { auth } from "@/lib/auth";
 import { getPendingNewsItems } from "@/lib/news/queries";
 
 export default async function DashboardPage() {
-  const pendingItems = await getPendingNewsItems();
+  const session = await auth();
+  const userId = session?.user?.id;
+
+  if (!userId) {
+    return null;
+  }
+
+  const pendingItems = await getPendingNewsItems(userId);
 
   return (
     <>

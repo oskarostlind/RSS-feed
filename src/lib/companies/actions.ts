@@ -2,6 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { getRequiredUserId } from "@/lib/auth";
+import { companyBelongsToUser } from "@/lib/companies/queries";
 import { prisma } from "@/lib/prisma";
 import { executeDiscoveryJob } from "@/lib/search/executeDiscoveryJob";
 import { SearchServiceError } from "@/lib/search/SearchService";
@@ -18,6 +20,7 @@ function revalidateCompanyViews(companyId?: string): void {
 }
 
 export async function addCompany(formData: FormData): Promise<void> {
+  const userId = await getRequiredUserId();
   const rawName = formData.get("name");
   const name = typeof rawName === "string" ? rawName.trim() : "";
 
@@ -27,6 +30,7 @@ export async function addCompany(formData: FormData): Promise<void> {
 
   const existing = await prisma.company.findFirst({
     where: {
+      userId,
       name: { equals: name, mode: "insensitive" },
     },
   });
@@ -36,7 +40,12 @@ export async function addCompany(formData: FormData): Promise<void> {
   }
 
   try {
-    await prisma.company.create({ data: { name } });
+    await prisma.company.create({
+      data: {
+        name,
+        userId,
+      },
+    });
   } catch (error) {
     console.error("Failed to add company:", error);
     redirect(`${COMPANIES_PATH}?error=failed`);
@@ -47,10 +56,21 @@ export async function addCompany(formData: FormData): Promise<void> {
 }
 
 export async function deleteCompany(companyId: string): Promise<void> {
+  const userId = await getRequiredUserId();
+
   try {
-    await prisma.company.delete({
-      where: { id: companyId },
+    const result = await prisma.company.deleteMany({
+      where: {
+        id: companyId,
+        userId,
+      },
     });
+
+    if (result.count === 0) {
+      console.warn(`Company ${companyId} was not deleted (missing or forbidden).`);
+      return;
+    }
+
     revalidateCompanyViews();
   } catch (error) {
     console.error(`Failed to delete company ${companyId}:`, error);
@@ -67,7 +87,20 @@ export interface CompanySearchActionResult {
 export async function searchNewsForCompany(
   companyId: string,
 ): Promise<CompanySearchActionResult> {
+  const userId = await getRequiredUserId();
+
   try {
+    const ownsCompany = await companyBelongsToUser(companyId, userId);
+
+    if (!ownsCompany) {
+      return {
+        success: false,
+        created: 0,
+        found: 0,
+        error: "Företaget hittades inte.",
+      };
+    }
+
     const job = await executeDiscoveryJob(companyId);
     const result = job.results[0];
 

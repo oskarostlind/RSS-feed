@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { NewsItemStatus } from "@/generated/prisma/enums";
+import { getRequiredUserId } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
 function revalidateNewsViews(companyId: string): void {
@@ -12,16 +13,21 @@ function revalidateNewsViews(companyId: string): void {
 
 async function updatePendingNewsItemStatus(
   newsItemId: string,
+  userId: string,
   status: typeof NewsItemStatus.CONFIRMED | typeof NewsItemStatus.REJECTED,
 ): Promise<void> {
-  const existing = await prisma.newsItem.findUnique({
-    where: { id: newsItemId },
-    select: { companyId: true, status: true },
+  const existing = await prisma.newsItem.findFirst({
+    where: {
+      id: newsItemId,
+      status: NewsItemStatus.PENDING,
+      company: { userId },
+    },
+    select: { companyId: true },
   });
 
-  if (!existing || existing.status !== NewsItemStatus.PENDING) {
+  if (!existing) {
     console.warn(
-      `News item ${newsItemId} was not updated (missing or not pending).`,
+      `News item ${newsItemId} was not updated (missing, not pending, or forbidden).`,
     );
     return;
   }
@@ -36,8 +42,10 @@ async function updatePendingNewsItemStatus(
 
 export async function approveNewsItem(newsItemId: string): Promise<void> {
   try {
+    const userId = await getRequiredUserId();
     await updatePendingNewsItemStatus(
       newsItemId,
+      userId,
       NewsItemStatus.CONFIRMED,
     );
   } catch (error) {
@@ -47,7 +55,12 @@ export async function approveNewsItem(newsItemId: string): Promise<void> {
 
 export async function rejectNewsItem(newsItemId: string): Promise<void> {
   try {
-    await updatePendingNewsItemStatus(newsItemId, NewsItemStatus.REJECTED);
+    const userId = await getRequiredUserId();
+    await updatePendingNewsItemStatus(
+      newsItemId,
+      userId,
+      NewsItemStatus.REJECTED,
+    );
   } catch (error) {
     console.error(`Failed to reject news item ${newsItemId}:`, error);
   }

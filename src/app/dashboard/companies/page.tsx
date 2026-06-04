@@ -1,5 +1,6 @@
 import { AddCompanyForm } from "@/app/dashboard/companies/_components/AddCompanyForm";
 import { CompanyListItem } from "@/app/dashboard/companies/_components/CompanyListItem";
+import { auth } from "@/lib/auth";
 import { getAllCompanies } from "@/lib/companies/queries";
 
 interface CompaniesPageProps {
@@ -22,8 +23,15 @@ function resolveErrorMessage(error: string | undefined): string | null {
 export default async function CompaniesPage({
   searchParams,
 }: CompaniesPageProps) {
+  const session = await auth();
+  const userId = session?.user?.id;
+
+  if (!userId) {
+    return null;
+  }
+
   const params = await searchParams;
-  const companies = await getAllCompanies();
+  const companies = await getAllCompanies(userId);
   const errorMessage = resolveErrorMessage(params.error);
 
   return (
@@ -63,8 +71,8 @@ export default async function CompaniesPage({
           )}
 
           <p className="mt-6 text-xs text-zinc-500 dark:text-zinc-400">
-            När du tar bort ett företag raderas även tillhörande nyheter,
-            prenumerationer och källor automatiskt.
+            När du tar bort ett företag raderas även tillhörande nyheter och
+            källor automatiskt.
           </p>
         </section>
       </main>

@@ -25,9 +25,10 @@ export interface CompanyWithNewsItems {
   newsItems: CompanyNewsHistoryRow[];
 }
 
-export async function getAllCompanies(): Promise<CompanyRow[]> {
+export async function getAllCompanies(userId: string): Promise<CompanyRow[]> {
   const [companies, pendingByCompany] = await Promise.all([
     prisma.company.findMany({
+      where: { userId },
       select: {
         id: true,
         name: true,
@@ -40,7 +41,10 @@ export async function getAllCompanies(): Promise<CompanyRow[]> {
     }),
     prisma.newsItem.groupBy({
       by: ["companyId"],
-      where: { status: NewsItemStatus.PENDING },
+      where: {
+        status: NewsItemStatus.PENDING,
+        company: { userId },
+      },
       _count: { _all: true },
     }),
   ]);
@@ -60,9 +64,13 @@ export async function getAllCompanies(): Promise<CompanyRow[]> {
 
 export async function getCompanyWithNewsItems(
   companyId: string,
+  userId: string,
 ): Promise<CompanyWithNewsItems | null> {
-  return prisma.company.findUnique({
-    where: { id: companyId },
+  return prisma.company.findFirst({
+    where: {
+      id: companyId,
+      userId,
+    },
     select: {
       id: true,
       name: true,
@@ -80,4 +88,19 @@ export async function getCompanyWithNewsItems(
       },
     },
   });
+}
+
+export async function companyBelongsToUser(
+  companyId: string,
+  userId: string,
+): Promise<boolean> {
+  const company = await prisma.company.findFirst({
+    where: {
+      id: companyId,
+      userId,
+    },
+    select: { id: true },
+  });
+
+  return company !== null;
 }

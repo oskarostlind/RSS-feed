@@ -22,30 +22,23 @@ async function main(): Promise<void> {
   const user = await prisma.user.upsert({
     where: { email: SEED_USER_EMAIL },
     update: {},
-    create: { email: SEED_USER_EMAIL },
+    create: {
+      email: SEED_USER_EMAIL,
+      emailVerified: new Date(),
+    },
   });
 
-  let company = await prisma.company.findFirst({
-    where: { name: SEED_COMPANY_NAME },
-  });
-
-  if (!company) {
-    company = await prisma.company.create({
-      data: { name: SEED_COMPANY_NAME },
-    });
-  }
-
-  await prisma.subscription.upsert({
+  const company = await prisma.company.upsert({
     where: {
-      userId_companyId: {
+      userId_name: {
         userId: user.id,
-        companyId: company.id,
+        name: SEED_COMPANY_NAME,
       },
     },
     update: {},
     create: {
+      name: SEED_COMPANY_NAME,
       userId: user.id,
-      companyId: company.id,
     },
   });
 
