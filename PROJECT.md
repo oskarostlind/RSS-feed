@@ -122,6 +122,20 @@ verifierad domän innan någon annan kan få mejl.
 **Ingen kostnadskontroll per användare.** Med öppen registrering kan en
 användare lägga in obegränsat många bolag. Behöver tak och köhantering.
 
+**Schemat är inte reproducerbart.** Det finns ingen `prisma/migrations`-katalog
+— tabellerna har bara någonsin skapats med `prisma db push` från en laptop. Och
+byggkommandot är `prisma generate && next build`, som genererar klienten men
+aldrig rör databasen. Ingen deploy kan alltså återställa schemat, och ingen kan
+se i repot vilket schema produktionen faktiskt har.
+
+Det är inte teoretiskt: 2026-08-06 svarade `/api/cron/search` med 500 och
+`P2021 — The table public.Company does not exist`. Morgonjobbet kan inte köra
+alls, vilket blockerar avsnitt 4 punkt 2. Felet finns i lika hög grad på
+deployer från före den dagens ändringar, så det är miljön och inte koden.
+Åtgärden kräver att man först vet *varför* tabellerna är borta — pekar
+`DATABASE_URL` på en ny tom Neon-gren, eller har den gamla tömts? Fallen kräver
+motsatta ingrepp, så det ska inte gissas.
+
 ## 7. Risker som är billigare att veta om nu
 
 **Google News RSS är odokumenterat.** Det är gratis och fungerar utmärkt, men
