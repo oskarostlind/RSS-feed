@@ -166,6 +166,14 @@ när en källa tystnar — inte bara när den kastar fel. `?probe=` i
 riktiga URL går inte att gräva fram. Länken fungerar för en läsare, men
 dedupliceringen blir sämre och det ser mindre proffsigt ut i en säljbar produkt.
 
+Gäller inte längre Bing. Där låg mål-URL:en i klartext i en `url`-parameter och
+plockas nu ut. Det var inte bara kosmetika: Bings klickräknar-länkar har ett
+`tid`-värde som är unikt per anrop, så samma artikel fick ny URL varje körning
+och sparades om varje dygn — dedupliceringen var i praktiken satt ur spel för
+Bing-träffar. Upptäcktes 2026-08-07 genom att köra morgonjobbet två gånger i
+rad och jämföra `created` mot `skipped`. Den kontrollen är värd att göra om
+efter varje ändring av en källa.
+
 **Upphovsrätt vid vidareförmedling.** Att länka är fritt. Men EU:s
 DSM-direktiv artikel 15 ger presspublicister en närstående rättighet till
 utdrag ur artiklar, och den gäller i svensk rätt. Att i en **kommersiell**
