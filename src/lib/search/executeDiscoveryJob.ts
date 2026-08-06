@@ -1,5 +1,6 @@
 import type { MorningSummaryNewsItem } from "@/lib/email/EmailService";
 import { prisma } from "@/lib/prisma";
+import { resolveWindowDays } from "@/lib/search/recency";
 import { RssFeedService } from "@/lib/search/RssFeedService";
 import { SearchService } from "@/lib/search/SearchService";
 import {
@@ -21,6 +22,10 @@ export interface UserDiscoveryResult {
 export interface DiscoveryJobResult {
   companiesProcessed: number;
   usersProcessed: number;
+  /** Tidsfönstret som gällde för körningen, i dagar. Rapporteras för spårbarhet. */
+  windowDays: number;
+  /** Nya artiklar som sparades men var för gamla för att mejlas. */
+  archivedNewsItems: number;
   perUser: UserDiscoveryResult[];
   results: CompanyDiscoveryResult[];
   createdNewsItems: MorningSummaryNewsItem[];
@@ -98,6 +103,11 @@ export async function executeDiscoveryJob(
   return {
     companiesProcessed: companies.length,
     usersProcessed: perUser.length,
+    windowDays: resolveWindowDays(),
+    archivedNewsItems: results.reduce(
+      (sum, result) => sum + result.archived,
+      0,
+    ),
     perUser,
     results,
     createdNewsItems: perUser.flatMap((entry) => entry.createdNewsItems),

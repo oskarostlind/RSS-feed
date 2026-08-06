@@ -1,5 +1,6 @@
 import type { MorningSummaryNewsItem } from "@/lib/email/EmailService";
 import { persistSearchHitsAsPending } from "@/lib/news/persistSearchHits";
+import { splitByRecency } from "@/lib/search/recency";
 import { filterAndRankHits } from "@/lib/search/relevance";
 import { RssFeedService } from "@/lib/search/RssFeedService";
 import { SearchService } from "@/lib/search/SearchService";
@@ -15,7 +16,9 @@ export interface CompanyDiscoveryResult {
   filteredOut: number;
   created: number;
   skipped: number;
-  /** Nya artiklar som namnger bolaget — dessa mejlas. */
+  /** Nya artiklar äldre än tidsfönstret — sparade, men inte mejlade. */
+  archived: number;
+  /** Nya artiklar som namnger bolaget och ligger inom fönstret — dessa mejlas. */
   createdItems: MorningSummaryNewsItem[];
   /** Nya artiklar utan namnträff — dessa syns bara i dashboarden. */
   createdPossibleItems: MorningSummaryNewsItem[];
@@ -83,6 +86,9 @@ export async function runCompanyDiscovery(
     companyName,
   }));
 
+  // Allt ovan är redan sparat. Delningen styr enbart vad som når mejlet.
+  const { fresh, archived } = splitByRecency(withCompany);
+
   return {
     companyId,
     companyName,
@@ -93,10 +99,9 @@ export async function runCompanyDiscovery(
     filteredOut: rejected.length,
     created,
     skipped,
-    createdItems: withCompany.filter((item) =>
-      highConfidenceUrls.has(item.url),
-    ),
-    createdPossibleItems: withCompany.filter(
+    archived: archived.length,
+    createdItems: fresh.filter((item) => highConfidenceUrls.has(item.url)),
+    createdPossibleItems: fresh.filter(
       (item) => !highConfidenceUrls.has(item.url),
     ),
   };

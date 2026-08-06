@@ -130,6 +130,18 @@ det är ingen officiell produkt med serviceåtagande. Google kan strypa eller
 För en produkt någon betalar för är det en enskild felkälla utan reservplan.
 Vi behöver minst en oberoende källa innan fas 2.
 
+Risken är inte teoretisk. 2026-08-07 gav google-rss noll träffar på testfallet,
+med HTTP 200 och utan fel — nio sekunders svarstid mot normala femtio
+millisekunder. Nästa anrop gav de tolv förväntade träffarna igen. Bing-RSS
+täckte upp och Peges-förvärvet nåddes ändå, vilket är precis varför två
+oberoende källor finns.
+
+**Det allvarliga är att en tyst nolla ser ut som "inga nyheter".** Händer det
+kl 07 uteblir mejlet utan att någon får veta att bevakningen låg nere. Vi
+behöver ett larm som jämför utfallet mot ett känt referensvärde och säger till
+när en källa tystnar — inte bara när den kastar fel. `?probe=` i
+`/api/debug/source-test` visar råsvaret och är första steget dit.
+
 **Länkarna går via Google.** Nya artikel-ID:n är krypterade, så publicistens
 riktiga URL går inte att gräva fram. Länken fungerar för en läsare, men
 dedupliceringen blir sämre och det ser mindre proffsigt ut i en säljbar produkt.
@@ -155,7 +167,11 @@ personuppgiftspolicy och rutin för radering innan öppen registrering.
 
 ## 9. Nästa steg
 
-1. Tidsfönster i cron-jobbet så att arkivartiklar inte mejlas
+1. ~~Tidsfönster i cron-jobbet så att arkivartiklar inte mejlas~~ — **klart
+   2026-08-07.** Sju dagar, styrbart via `NEWS_WINDOW_DAYS`. Fönstret gäller
+   bara mejlet: allt sparas fortfarande, dels för dashboardens historik, dels
+   för att dedupliceringen kräver att artikeln finns lagrad. Artiklar utan
+   publiceringsdatum släpps igenom enligt avvägningen i avsnitt 4
 2. Rätta `NewsItem`-unikheten till `@@unique([companyId, url])`
 3. Registerhändelser från Bolagsverket och Post- och Inrikes Tidningar
 4. Jobbannonser via JobTech
