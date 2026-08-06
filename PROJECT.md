@@ -75,6 +75,27 @@ Registerhändelser och jobbannonser är strukturerad data, inte fritext. De
 behöver egna datamodeller — dagens `NewsItem` med rubrik och länk passar dåligt
 för "styrelseändring registrerad 2026-04-01".
 
+### Så kommer bolagen in
+
+Idag går det bara att lägga till ett bolag i taget via ett textfält. Med den
+skala vi siktar på — över 100 bolag — är det ohållbart. En AM har redan sin
+kundlista i Excel eller ett CRM och ska inte behöva knappa in den för hand.
+
+**Massimport från fil** är därför ett krav, inte en bekvämlighet. Kravbilden:
+
+- Tar emot `.xlsx` och `.csv`. Excel är formatet en säljare faktiskt har.
+- Låter användaren peka ut vilken kolumn som innehåller bolagsnamnet, i stället
+  för att gissa. Filer från CRM har sällan en kolumn som heter "Företagsnamn".
+- **Visar en förhandsgranskning innan något sparas.** Att importera 150 fel
+  namn och sedan få bevakningar på alla är svårt att ångra.
+- Flaggar dubbletter mot portföljen och inom filen.
+- Normaliserar bolagsformer så att "Peges i Ljusdal AB" och "Peges i Ljusdal"
+  inte blir två bevakningar.
+- Rapporterar per rad vad som gick igenom och vad som hoppades över, med skäl.
+
+Importen bör inte påbörjas innan kö-arkitekturen i avsnitt 6 är på plats — se
+kopplingen där.
+
 ## 6. Vad som måste byggas om innan fas 2
 
 Detta är kända brister, inte spekulation.
@@ -88,6 +109,11 @@ lägger till ett bolag någon annan redan följer.
 körning per dygn och 60 sekunders maxtid. Med dagens ~350 ms per bolag räcker
 det till 30–50 bolag. Vid 100+ krävs Vercel Pro och en kö där varje körning
 betar av en delmängd, alternativt fan-out till parallella funktioner.
+
+Massimporten och kö-arkitekturen hänger ihop: i samma stund som en användare
+kan ladda upp en Excel med 150 rader spricker morgonkörningen på tidsgränsen.
+Bygger vi importen först får vi en funktion som omedelbart sänker systemet. Kön
+ska därför på plats först.
 
 **Mejl går bara fram till kontoägaren.** Avsändaren är `onboarding@resend.dev`,
 och Resends gratisnivå levererar bara till kontots egen adress. Kräver
@@ -134,4 +160,6 @@ personuppgiftspolicy och rutin för radering innan öppen registrering.
 3. Registerhändelser från Bolagsverket och Post- och Inrikes Tidningar
 4. Jobbannonser via JobTech
 5. Kö-arkitektur för 100+ bolag
-6. Verifierad mejldomän i Resend
+6. Massimport av bolag från `.xlsx` och `.csv` — se avsnitt 5. Förutsätter
+   punkt 5, annars sänker första stora importen morgonkörningen
+7. Verifierad mejldomän i Resend
