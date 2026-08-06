@@ -2,7 +2,12 @@ import { NextResponse } from "next/server";
 import { verifyCronSecret } from "@/lib/auth/verifyCronSecret";
 import { buildQueryVariants } from "@/lib/search/companyQuery";
 import { filterAndRankHits } from "@/lib/search/relevance";
-import { RssFeedService } from "@/lib/search/RssFeedService";
+import {
+  probeProviderFeed,
+  RssFeedService,
+  type FeedProbe,
+  type RssProvider,
+} from "@/lib/search/RssFeedService";
 import { ScraperService } from "@/lib/search/ScraperService";
 import { SearchService } from "@/lib/search/SearchService";
 import type { SearchHit } from "@/lib/search/types";
@@ -113,6 +118,37 @@ async function runSource(
   }
 }
 
+/**
+ * `?probe=google-rss` (eller `bing-rss`, eller `1` för båda) lägger till
+ * råsvaret från RSS-leverantören i utdatat: HTTP-status, innehållstyp,
+ * omdirigering och de första raderna av kroppen.
+ *
+ * Skiljt från den vanliga körningen därför att den kostar extra anrop och bara
+ * behövs när en källa ger noll träffar utan att kasta fel — då är frågan inte
+ * "hur många träffar" utan "vad svarade servern egentligen".
+ */
+async function runProbes(
+  value: string | null,
+  companyName: string,
+): Promise<FeedProbe[] | undefined> {
+  if (!value) {
+    return undefined;
+  }
+
+  const providers: RssProvider[] =
+    value === "google-rss"
+      ? ["googleNews"]
+      : value === "bing-rss"
+        ? ["bingNews"]
+        : ["googleNews", "bingNews"];
+
+  const results = await Promise.all(
+    providers.map((provider) => probeProviderFeed(provider, companyName)),
+  );
+
+  return results.flat();
+}
+
 export async function GET(request: Request): Promise<NextResponse> {
   const unauthorized = verifyCronSecret(request);
   if (unauthorized) {
@@ -131,6 +167,7 @@ export async function GET(request: Request): Promise<NextResponse> {
 
   const verbose = params.get("verbose") === "1";
   const sources = parseRequestedSources(params.get("source"));
+  const probes = await runProbes(params.get("probe"), companyName);
   const results = await Promise.all(
     sources.map((source) => runSource(source, companyName)),
   );
@@ -163,5 +200,6 @@ export async function GET(request: Request): Promise<NextResponse> {
     })),
     relevantHits: kept,
     rejectedHits: verbose ? rejected : rejected.slice(0, 10),
+    ...(probes ? { probes } : {}),
   });
 }
