@@ -25,8 +25,12 @@ export async function persistSearchHitsAsPending(
   }
 
   const urls = hits.map((hit) => hit.url);
+
+  // Dedupliceringen är avgränsad till bolaget. Samma artikel kan mycket väl
+  // vara en nyhet för två olika bevakningar — en artikel om ett förvärv rör
+  // både köparen och den köpta — och ska då sparas för båda.
   const existing = await prisma.newsItem.findMany({
-    where: { url: { in: urls } },
+    where: { companyId, url: { in: urls } },
     select: { url: true },
   });
   const existingUrls = new Set(existing.map((item) => item.url));

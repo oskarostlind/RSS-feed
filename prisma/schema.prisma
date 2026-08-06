@@ -83,13 +83,18 @@ model NewsItem {
   companyId   String
   title       String
   snippet     String?
-  url         String         @unique
+  // Unik per bolag, inte globalt. Två användare som bevakar samma bolag — eller
+  // två bolag som nämns i samma artikel — ska båda få träffen. Med global
+  // unikhet vann den som råkade sparas först och den andra tystades av
+  // dedupliceringen utan spår.
+  url         String
   publishedAt DateTime?
   status      NewsItemStatus @default(PENDING)
   createdAt   DateTime       @default(now())
   updatedAt   DateTime       @updatedAt
   company     Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
+  @@unique([companyId, url])
   @@index([companyId])
   @@index([status])
 }

@@ -100,10 +100,12 @@ kopplingen där.
 
 Detta är kända brister, inte spekulation.
 
-**`NewsItem.url` är globalt unik.** Om två användare bevakar samma bolag får
-bara den ena artikeln — den andra tystas av dedupliceringen. Måste bli
-`@@unique([companyId, url])`. Spricker i samma sekund som andra användaren
-lägger till ett bolag någon annan redan följer.
+~~**`NewsItem.url` är globalt unik.**~~ **Åtgärdat 2026-08-07.** Unikheten är
+nu `@@unique([companyId, url])`, och dedupliceringen i `persistSearchHits`
+filtrerar per bolag i stället för globalt. Rättningen gjordes samtidigt som
+schemat lades på den nya databasen, medan tabellerna var tomma — mot en
+databas med data hade samma ändring krävt att man först hittade och slog ihop
+befintliga dubbletter.
 
 **Cron-arkitekturen håller inte för över 100 bolag.** Vercel Hobby ger en
 körning per dygn och 60 sekunders maxtid. Med dagens ~350 ms per bolag räcker
@@ -128,13 +130,17 @@ byggkommandot är `prisma generate && next build`, som genererar klienten men
 aldrig rör databasen. Ingen deploy kan alltså återställa schemat, och ingen kan
 se i repot vilket schema produktionen faktiskt har.
 
-Det är inte teoretiskt: 2026-08-06 svarade `/api/cron/search` med 500 och
-`P2021 — The table public.Company does not exist`. Morgonjobbet kan inte köra
-alls, vilket blockerar avsnitt 4 punkt 2. Felet finns i lika hög grad på
-deployer från före den dagens ändringar, så det är miljön och inte koden.
-Åtgärden kräver att man först vet *varför* tabellerna är borta — pekar
-`DATABASE_URL` på en ny tom Neon-gren, eller har den gamla tömts? Fallen kräver
-motsatta ingrepp, så det ska inte gissas.
+Det var inte teoretiskt: 2026-08-07 svarade `/api/cron/search` med 500 och
+`P2021 — The table public.Company does not exist`. Orsaken var att
+`DATABASE_URL` pekade på en nyuppsatt, tom Neon-databas som aldrig fått
+schemat. Åtgärdat samma dag med `prisma db push` mot `neondb`, som då bara
+innehöll en tom `_prisma_migrations`-tabell — ingen data gick förlorad.
+
+**Grundproblemet kvarstår dock:** nästa gång databasen byts ut händer exakt
+samma sak, tyst, och upptäcks först när någon undrar var morgonmejlet tog
+vägen. Att lägga `prisma migrate deploy` i byggkommandot kräver först att
+schemat får en riktig migrationshistorik — `db push` skriver ingen. Det är
+nästa strukturella skuld att betala av.
 
 ## 7. Risker som är billigare att veta om nu
 
@@ -186,7 +192,8 @@ personuppgiftspolicy och rutin för radering innan öppen registrering.
    bara mejlet: allt sparas fortfarande, dels för dashboardens historik, dels
    för att dedupliceringen kräver att artikeln finns lagrad. Artiklar utan
    publiceringsdatum släpps igenom enligt avvägningen i avsnitt 4
-2. Rätta `NewsItem`-unikheten till `@@unique([companyId, url])`
+2. ~~Rätta `NewsItem`-unikheten till `@@unique([companyId, url])`~~ — **klart
+   2026-08-07**, se avsnitt 6
 3. Registerhändelser från Bolagsverket och Post- och Inrikes Tidningar
 4. Jobbannonser via JobTech
 5. Kö-arkitektur för 100+ bolag
