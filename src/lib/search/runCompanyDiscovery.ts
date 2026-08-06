@@ -15,7 +15,10 @@ export interface CompanyDiscoveryResult {
   filteredOut: number;
   created: number;
   skipped: number;
+  /** Nya artiklar som namnger bolaget — dessa mejlas. */
   createdItems: MorningSummaryNewsItem[];
+  /** Nya artiklar utan namnträff — dessa syns bara i dashboarden. */
+  createdPossibleItems: MorningSummaryNewsItem[];
 }
 
 function dedupeHitsByUrl(hits: SearchHit[]): SearchHit[] {
@@ -64,12 +67,21 @@ export async function runCompanyDiscovery(
   ]);
 
   const mergedHits = dedupeHitsByUrl([...rssHits, ...gnewsHits]);
-  const { kept, rejected } = filterAndRankHits(mergedHits, companyName);
+  const { kept, highConfidence, rejected } = filterAndRankHits(
+    mergedHits,
+    companyName,
+  );
 
   const { created, skipped, createdItems } = await persistSearchHitsAsPending(
     companyId,
     kept,
   );
+
+  const highConfidenceUrls = new Set(highConfidence.map((hit) => hit.url));
+  const withCompany = createdItems.map((item) => ({
+    ...item,
+    companyName,
+  }));
 
   return {
     companyId,
@@ -81,9 +93,11 @@ export async function runCompanyDiscovery(
     filteredOut: rejected.length,
     created,
     skipped,
-    createdItems: createdItems.map((item) => ({
-      ...item,
-      companyName,
-    })),
+    createdItems: withCompany.filter((item) =>
+      highConfidenceUrls.has(item.url),
+    ),
+    createdPossibleItems: withCompany.filter(
+      (item) => !highConfidenceUrls.has(item.url),
+    ),
   };
 }

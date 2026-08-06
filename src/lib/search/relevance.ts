@@ -64,13 +64,28 @@ const SIGNAL_KEYWORDS = [
   "övertar",
 ] as const;
 
+/**
+ * `high` — bolagsnamnet står i rubrik eller ingress. Går rakt in i mejlet.
+ * `low`  — namnet syns inte i rubriken, men sökningen krävde det i fulltexten.
+ *          Lokaltidningar skriver ofta "Ljusdalsföretag" i stället för
+ *          bolagsnamnet, så de här får inte slängas — de hamnar i dashboarden
+ *          för manuell bedömning i stället för i mejlet.
+ */
+export type HitConfidence = "high" | "low";
+
 export interface ScoredHit extends SearchHit {
   score: number;
   matchedKeywords: string[];
+  confidence: HitConfidence;
 }
 
 export interface RelevanceDecision {
+  /** Alla träffar som passerat hårda spärrar, rankade. */
   kept: ScoredHit[];
+  /** Delmängd av kept med confidence "high" — det som mejlas. */
+  highConfidence: ScoredHit[];
+  /** Delmängd av kept med confidence "low" — enbart dashboarden. */
+  lowConfidence: ScoredHit[];
   rejected: Array<{ url: string; title: string; reason: string }>;
 }
 
@@ -117,9 +132,12 @@ function countKeywords(text: string): string[] {
 }
 
 /**
- * En artikel räknas som en träff först när bolagsnamnet faktiskt förekommer i
- * rubrik eller ingress. RSS-sökningar returnerar gärna näraliggande men fel
- * bolag, och utan det här steget fylls mejlet med brus.
+ * Hårda spärrar först, sedan poängsättning. Att bolagsnamnet saknas i texten
+ * är medvetet *inte* en spärr — det sänker bara till confidence "low".
+ *
+ * Skälet: Google News `<description>` innehåller bara rubriken igen, så det
+ * finns ingen brödtext att matcha mot. Ett strikt namnkrav slängde i test bort
+ * fyra korrekta artiklar om Peges där lokalpressen skrev "Ljusdalsföretag".
  */
 export function scoreHit(
   hit: SearchHit,
@@ -133,24 +151,22 @@ export function scoreHit(
     return { ok: false, reason: "company-own-domain" };
   }
 
-  const title = hit.title.toLowerCase();
-  const snippet = hit.snippet.toLowerCase();
-  const haystack = `${title} ${snippet}`;
   const tokens = significantNameTokens(companyName);
 
   if (tokens.length === 0) {
     return { ok: false, reason: "no-usable-company-tokens" };
   }
 
+  const title = hit.title.toLowerCase();
+  const haystack = `${title} ${hit.snippet.toLowerCase()}`;
+
   const matchedInTitle = tokens.filter((token) => title.includes(token));
   const matchedAnywhere = tokens.filter((token) => haystack.includes(token));
 
-  // Varumärkesledet är alltid första token och måste alltid finnas med.
-  if (!matchedAnywhere.includes(tokens[0])) {
-    return { ok: false, reason: "company-name-absent" };
-  }
-
+  // Varumärkesledet är alltid första token.
+  const namesTheCompany = matchedAnywhere.includes(tokens[0]);
   const matchedKeywords = countKeywords(haystack);
+
   const score =
     matchedAnywhere.length * 2 +
     matchedInTitle.length * 3 +
@@ -159,7 +175,12 @@ export function scoreHit(
 
   return {
     ok: true,
-    scored: { ...hit, score, matchedKeywords },
+    scored: {
+      ...hit,
+      score,
+      matchedKeywords,
+      confidence: namesTheCompany ? "high" : "low",
+    },
   };
 }
 
@@ -190,5 +211,10 @@ export function filterAndRankHits(
     return bTime - aTime;
   });
 
-  return { kept, rejected };
+  return {
+    kept,
+    highConfidence: kept.filter((hit) => hit.confidence === "high"),
+    lowConfidence: kept.filter((hit) => hit.confidence === "low"),
+    rejected,
+  };
 }

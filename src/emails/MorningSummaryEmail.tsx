@@ -24,6 +24,12 @@ export interface MorningSummaryNewsItem {
 
 interface MorningSummaryEmailProps {
   newsItems: MorningSummaryNewsItem[];
+  /**
+   * Artiklar där bolagsnamnet inte stod i rubriken — ofta lokalpress som
+   * skriver "Ljusdalsföretag" i stället. De listas separat och kortfattat så
+   * att de inte konkurrerar med de säkra träffarna.
+   */
+  possibleItems?: MorningSummaryNewsItem[];
 }
 
 function buildPreviewText(newsItems: MorningSummaryNewsItem[]): string {
@@ -40,6 +46,7 @@ function buildArticleCountLabel(count: number): string {
 
 export function MorningSummaryEmail({
   newsItems,
+  possibleItems = [],
 }: MorningSummaryEmailProps) {
   const articleCountLabel = buildArticleCountLabel(newsItems.length);
 
@@ -100,6 +107,33 @@ export function MorningSummaryEmail({
                 </Section>
               );
             })}
+
+            {possibleItems.length > 0 ? (
+              <Section className="mt-10">
+                <Hr className="mb-6 border-zinc-200" />
+                <Text className="m-0 mb-1 text-xs font-semibold uppercase tracking-[0.08em] text-zinc-500">
+                  Kanske relevant
+                </Text>
+                <Text className="m-0 mb-4 text-[13px] leading-5 text-zinc-500">
+                  Artiklar som matchade sökningen men inte nämner bolaget vid
+                  namn i rubriken. Bedöm dem i dashboarden.
+                </Text>
+
+                {possibleItems.map((item) => (
+                  <Section key={item.id} className="mb-3">
+                    <Text className="m-0 text-[11px] font-semibold uppercase tracking-[0.04em] text-zinc-400">
+                      {item.companyName}
+                    </Text>
+                    <Link
+                      href={item.url}
+                      className="text-sm leading-5 text-zinc-700 underline"
+                    >
+                      {item.title}
+                    </Link>
+                  </Section>
+                ))}
+              </Section>
+            ) : null}
 
             <Section className="mt-8 text-center">
               <Text className="m-0 text-xs leading-5 text-zinc-400">

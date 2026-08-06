@@ -1,10 +1,7 @@
 import { NextResponse } from "next/server";
 import { buildSearchErrorResponse } from "@/lib/api/searchErrorResponse";
 import { verifyCronSecret } from "@/lib/auth/verifyCronSecret";
-import {
-  EmailService,
-  EmailServiceError,
-} from "@/lib/email/EmailService";
+import { EmailService, EmailServiceError } from "@/lib/email/EmailService";
 import { executeDiscoveryJob } from "@/lib/search/executeDiscoveryJob";
 import { SearchServiceError } from "@/lib/search/SearchService";
 import {
@@ -14,6 +11,17 @@ import {
 
 export const maxDuration = 60;
 
+interface EmailDeliveryReport {
+  userId: string;
+  email: string;
+  articleCount: number;
+  possibleCount: number;
+  sent: boolean;
+  emailId: string | null;
+  error: string | null;
+  skippedReason: string | null;
+}
+
 export async function GET(request: Request): Promise<NextResponse> {
   const unauthorized = verifyCronSecret(request);
   if (unauthorized) {
@@ -22,41 +30,90 @@ export async function GET(request: Request): Promise<NextResponse> {
 
   try {
     const result = await executeDiscoveryJob();
-    let emailSent = false;
-    let emailId: string | null = null;
-    let emailError: string | null = null;
+    const deliveries: EmailDeliveryReport[] = [];
 
-    if (result.createdNewsItems.length > 0) {
+    // Instansieras en gång — men bara om det finns något att mejla, så att en
+    // saknad RESEND_API_KEY inte sänker en körning utan nya artiklar.
+    let emailService: EmailService | null = null;
+
+    for (const user of result.perUser) {
+      const base = {
+        userId: user.userId,
+        email: user.email,
+        articleCount: user.createdNewsItems.length,
+        possibleCount: user.possibleNewsItems.length,
+      };
+
+      if (user.createdNewsItems.length === 0) {
+        deliveries.push({
+          ...base,
+          sent: false,
+          emailId: null,
+          error: null,
+          skippedReason: "no-new-articles",
+        });
+        continue;
+      }
+
+      if (!user.emailDeliverable) {
+        deliveries.push({
+          ...base,
+          sent: false,
+          emailId: null,
+          error: null,
+          skippedReason: "undeliverable-address",
+        });
+        continue;
+      }
+
       try {
-        const emailService = EmailService.fromEnv();
+        emailService ??= EmailService.fromEnv();
+
         const sendResult = await emailService.sendMorningSummary(
-          result.createdNewsItems,
+          user.createdNewsItems,
+          {
+            to: user.email,
+            possibleItems: user.possibleNewsItems,
+          },
         );
-        emailSent = true;
-        emailId = sendResult.id;
+
         console.log(
-          `Morning summary email sent to admin (${sendResult.id}) with ${result.createdNewsItems.length} new articles.`,
+          `Morning summary sent to ${user.email} (${sendResult.id}) with ${user.createdNewsItems.length} articles.`,
         );
+
+        deliveries.push({
+          ...base,
+          sent: true,
+          emailId: sendResult.id,
+          error: null,
+          skippedReason: null,
+        });
       } catch (error) {
-        emailError =
+        const message =
           error instanceof EmailServiceError
             ? error.message
             : formatErrorMessage(error);
         const causeMessage = formatErrorCause(error);
-        console.error("Failed to send morning summary email:", error);
+
+        console.error(`Failed to send morning summary to ${user.email}:`, error);
         if (causeMessage) {
-          console.error("Morning summary email error cause:", causeMessage);
+          console.error("Cause:", causeMessage);
         }
+
+        deliveries.push({
+          ...base,
+          sent: false,
+          emailId: null,
+          error: message,
+          skippedReason: null,
+        });
       }
-    } else {
-      console.log("Morning summary email skipped: no new articles found.");
     }
 
     return NextResponse.json({
       ...result,
-      emailSent,
-      emailId,
-      emailError,
+      emailsSent: deliveries.filter((delivery) => delivery.sent).length,
+      deliveries,
     });
   } catch (error) {
     if (error instanceof Error && error.message === "COMPANY_NOT_FOUND") {

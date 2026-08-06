@@ -60,12 +60,16 @@ export class EmailService {
 
   async sendMorningSummary(
     newsItems: MorningSummaryNewsItem[],
+    options?: { to?: string; possibleItems?: MorningSummaryNewsItem[] },
   ): Promise<SendMorningSummaryResult> {
     if (newsItems.length === 0) {
       throw new EmailServiceError(
         "sendMorningSummary requires at least one news item",
       );
     }
+
+    const recipient = options?.to ?? this.adminEmail;
+    const possibleItems = options?.possibleItems ?? [];
 
     const subject =
       newsItems.length === 1
@@ -75,9 +79,9 @@ export class EmailService {
     try {
       const response = await this.resend.emails.send({
         from: this.fromEmail,
-        to: this.adminEmail,
+        to: recipient,
         subject,
-        react: MorningSummaryEmail({ newsItems }),
+        react: MorningSummaryEmail({ newsItems, possibleItems }),
       });
 
       if (response.error) {
