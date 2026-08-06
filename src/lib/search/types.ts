@@ -3,6 +3,10 @@ export interface SearchHit {
   url: string;
   snippet: string;
   publishedAt: Date | null;
+  /** Publicistens namn när källan uppger det, t.ex. "Verkstadstidningen". */
+  sourceName?: string;
+  /** Publicistens domän utan www, t.ex. "verkstadstidningen.se". */
+  sourceDomain?: string;
 }
 
 export interface SearchServiceConfig {

@@ -1,6 +1,6 @@
 import type { MorningSummaryNewsItem } from "@/lib/email/EmailService";
 import { prisma } from "@/lib/prisma";
-import { ScraperService } from "@/lib/search/ScraperService";
+import { RssFeedService } from "@/lib/search/RssFeedService";
 import { SearchService } from "@/lib/search/SearchService";
 import {
   runCompanyDiscovery,
@@ -29,7 +29,7 @@ export async function executeDiscoveryJob(
   }
 
   const searchService = SearchService.fromEnv();
-  const scraperService = new ScraperService();
+  const rssFeedService = new RssFeedService();
   const results: CompanyDiscoveryResult[] = [];
 
   for (const company of companies) {
@@ -37,7 +37,7 @@ export async function executeDiscoveryJob(
       company.id,
       company.name,
       searchService,
-      scraperService,
+      rssFeedService,
     );
     results.push(result);
   }

@@ -1,5 +1,8 @@
 import { NextResponse } from "next/server";
 import { verifyCronSecret } from "@/lib/auth/verifyCronSecret";
+import { buildQueryVariants } from "@/lib/search/companyQuery";
+import { filterAndRankHits } from "@/lib/search/relevance";
+import { RssFeedService } from "@/lib/search/RssFeedService";
 import { ScraperService } from "@/lib/search/ScraperService";
 import { SearchService } from "@/lib/search/SearchService";
 import type { SearchHit } from "@/lib/search/types";
@@ -16,12 +19,23 @@ export const dynamic = "force-dynamic";
  * täckning och parsning i skarp miljö, där utgående nätverk faktiskt fungerar.
  *
  *   GET /api/debug/source-test?secret=<CRON_SECRET>&company=Peges%20i%20Ljusdal%20AB
- *   GET /api/debug/source-test?secret=...&company=...&source=gnews
+ *   GET /api/debug/source-test?secret=...&company=...&source=google-rss
+ *   GET /api/debug/source-test?secret=...&company=...&verbose=1
  */
 
-type SourceName = "gnews" | "scrape";
+type SourceName = "google-rss" | "bing-rss" | "gnews" | "scrape";
 
-const ALL_SOURCES: readonly SourceName[] = ["gnews", "scrape"] as const;
+/** Skrapningen körs bara på begäran — den har visat sig ge noll träffar. */
+const DEFAULT_SOURCES: readonly SourceName[] = [
+  "google-rss",
+  "bing-rss",
+  "gnews",
+] as const;
+
+const ALL_SOURCES: readonly SourceName[] = [
+  ...DEFAULT_SOURCES,
+  "scrape",
+] as const;
 
 interface SourceOutcome {
   source: SourceName;
@@ -33,7 +47,11 @@ interface SourceOutcome {
 }
 
 function parseRequestedSources(value: string | null): SourceName[] {
-  if (!value || value === "all") {
+  if (!value) {
+    return [...DEFAULT_SOURCES];
+  }
+
+  if (value === "all") {
     return [...ALL_SOURCES];
   }
 
@@ -44,7 +62,7 @@ function parseRequestedSources(value: string | null): SourceName[] {
       (ALL_SOURCES as readonly string[]).includes(entry),
     );
 
-  return requested.length > 0 ? requested : [...ALL_SOURCES];
+  return requested.length > 0 ? requested : [...DEFAULT_SOURCES];
 }
 
 async function runSource(
@@ -57,6 +75,16 @@ async function runSource(
     let hits: SearchHit[];
 
     switch (source) {
+      case "google-rss":
+        hits = await new RssFeedService().searchForCompany(companyName, [
+          "googleNews",
+        ]);
+        break;
+      case "bing-rss":
+        hits = await new RssFeedService().searchForCompany(companyName, [
+          "bingNews",
+        ]);
+        break;
       case "gnews":
         hits = await SearchService.fromEnv().searchForCompany(companyName);
         break;
@@ -101,20 +129,39 @@ export async function GET(request: Request): Promise<NextResponse> {
     );
   }
 
+  const verbose = params.get("verbose") === "1";
   const sources = parseRequestedSources(params.get("source"));
   const results = await Promise.all(
     sources.map((source) => runSource(source, companyName)),
   );
 
-  const uniqueUrls = new Set(
-    results.flatMap((result) => result.hits.map((hit) => hit.url)),
-  );
+  const seen = new Set<string>();
+  const mergedHits = results
+    .flatMap((result) => result.hits)
+    .filter((hit) => {
+      if (seen.has(hit.url)) {
+        return false;
+      }
+
+      seen.add(hit.url);
+      return true;
+    });
+
+  const { kept, rejected } = filterAndRankHits(mergedHits, companyName);
 
   return NextResponse.json({
     companyName,
+    queries: buildQueryVariants(companyName),
     ranAt: new Date().toISOString(),
     totalHits: results.reduce((sum, result) => sum + result.count, 0),
-    uniqueUrls: uniqueUrls.size,
-    results,
+    uniqueHits: mergedHits.length,
+    relevant: kept.length,
+    filteredOut: rejected.length,
+    perSource: results.map(({ hits, ...summary }) => ({
+      ...summary,
+      ...(verbose ? { hits } : {}),
+    })),
+    relevantHits: kept,
+    rejectedHits: verbose ? rejected : rejected.slice(0, 10),
   });
 }
