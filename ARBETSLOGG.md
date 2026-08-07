@@ -3,6 +3,58 @@
 Vad de automatiska körningarna gjort, senast överst. Kort med flit — det här är
 överblicken, inte dokumentationen. Den ligger i `PROJECT.md`.
 
+## 2026-08-08 00:30 — vägen ut ur mejlet, och namnet
+
+**Byggt:**
+
+- `ee0ec76` — **avregistrering från morgonmejlet.** Låg oincheckad i
+  arbetsträdet från en körning som dog vid 20-tiden; kärnan var skriven men
+  ingenting var kopplat. Jag kopplade in den: schemat, cron-skippen, länken i
+  mejlets sidfot och textdel, `List-Unsubscribe`-huvudena, och ett reglage på
+  kontosidan för att slå på det igen. Länken kräver ingen inloggning — se
+  PROJECT.md avsnitt 6 för varför det är hela poängen.
+- `a276c26` — **domänen är kundnytt.se.** Du sa att den beställda var upptagen.
+  Bytet träffade bara dokument och testdata; ingen produktionskod bar domänen.
+- `e13e3a6` — **tjänsten heter Kundnytt.** *Gissning, se nedan.*
+- `a3f873e` — **registreringsspärr, `SIGNUP_MODE`.** `open` är förval, alltså
+  dagens beteende oförändrat. Byggd nu och inte sen därför att den enda spärr
+  som finns idag är oavsiktlig: att mejlen inte kommer fram. Den faller över en
+  natt när du verifierar domänen.
+
+**Gissningar:**
+
+- *Namnbytet till Kundnytt.* Ett produktnamn som inte är domänen syns värst i
+  avsändarnamnet i inkorgen — och inloggningssidan ber till och med användaren
+  att söka på namnet i skräpposten. Alternativet var att behålla Företagskollen
+  och låta domänen vara en adress som inte betyder något; det kostar ingenting
+  i kod. **Reverta `e13e3a6` ensam om du vill ha namnet tillbaka.** `EMAIL_FROM`
+  i Vercel vinner över koden, så avsändarnamnet byts först när du ändrar den.
+- *Avregistrering stoppar inte sökningen.* Bara utskicket upphör; nyheterna
+  fortsätter fylla dashboarden. Alternativet vore att sluta söka helt, vilket
+  hade sparat tid i körningen men tömt inkorgen för någon som bara ville slippa
+  mejlet.
+- *Tom `SIGNUP_ALLOWLIST` i invite-läge nekar alla.* En glömd variabel ska inte
+  öppna tjänsten. Okänt värde på `SIGNUP_MODE` går däremot åt andra hållet och
+  betyder öppet — ett stavfel ska inte tyst låsa ute alla.
+
+**Rättat i förbifarten:** §9.11, spärrlistan mot icke-nyhetsdomäner, var redan
+byggd i `8631975` men stod kvar som öppen i PROJECT.md. Ingen kod behövdes.
+
+**Blockerat, väntar på dig:**
+
+- **Mejldomänen** (§9.8). Kräver konto hos Brevo och DNS hos Strato. Stegen står
+  i `DOMAN-CHECKLISTA.md` — den pekar nu på kundnytt.se.
+- **Beslutet om registreringen** (§9.18). Spärren finns, läget är ditt val.
+- **Klockslaget vintertid** (§9.12). Kräver Vercel Pro för att lösas, annars är
+  det ett beslut om att acceptera en timmes drift.
+
+**Trasigt när jag slutade:** ingenting. 94 tester gröna, tsc och eslint rena.
+Peges-testfallet hittas (15 träffar, google-rss 12, bing-rss 3, gnews 0).
+Morgonjobbet kört två gånger i rad efter avregistreringscommiten: andra
+körningen gav `created: 0` och `skipped: 123`. Ingen testdata skapad.
+
+---
+
 ## 2026-08-07 16:45 — gränssnittet genomgånget
 
 Du frågade om UI:t är klart och om folk kan skapa konton. **Svaret på det andra
