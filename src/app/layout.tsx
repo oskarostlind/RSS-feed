@@ -13,8 +13,23 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Företagskollen",
-  description: "Proaktiv bevakning av företagsomnämnanden",
+  // Mallen gör att undersidor slipper upprepa varumärket, och att en flik i
+  // webbläsaren går att skilja från en annan.
+  title: {
+    default: "Företagskollen — bevaka dina kundbolag i svensk nyhetsmedia",
+    template: "%s — Företagskollen",
+  },
+  description:
+    "Få ett mejl varje morgon när bolagen du följer dyker upp i svensk lokal- och branschpress. Förvärv, konkurser, expansioner och nyrekryteringar.",
+  // Öppen graf för när någon delar länken i Slack eller LinkedIn. Utan den
+  // visas bara en naken URL.
+  openGraph: {
+    title: "Företagskollen",
+    description:
+      "Bevaka dina kundbolag i svensk lokal- och branschpress. Ett mejl om morgonen.",
+    locale: "sv_SE",
+    type: "website",
+  },
 };
 
 export default function RootLayout({

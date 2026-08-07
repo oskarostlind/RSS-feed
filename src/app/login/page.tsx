@@ -39,11 +39,23 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
 
         {skickat ? (
           <p className="mt-6 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-200">
-            Länken är skickad och är giltig i 24 timmar. Hittar du den inte i
-            inkorgen: <strong>kolla skräpposten</strong> och sök på
-            &quot;Omvärldsbevakare&quot;. Avsändaren är en delad
-            Resend-adress tills vi har en egen verifierad domän, och den
-            sorteras ofta undan första gången.
+            Länken är skickad och är giltig i 24 timmar.
+            {/*
+              Skräppostvarningen visas bara så länge avsändaren sitter på den
+              delade sandlådedomänen. Den försvinner av sig själv när
+              EMAIL_FROM pekar på en verifierad domän — en varning som står
+              kvar när problemet är löst lär användaren att strunta i den.
+            */}
+            {avsandare.isVerifiedDomain ? null : (
+              <>
+                {" "}
+                Hittar du den inte i inkorgen:{" "}
+                <strong>kolla skräpposten</strong> och sök på
+                &quot;Företagskollen&quot;. Avsändaren är en delad
+                Resend-adress tills vi har en egen verifierad domän, och den
+                sorteras ofta undan första gången.
+              </>
+            )}
           </p>
         ) : null}
 
