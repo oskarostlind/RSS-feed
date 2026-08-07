@@ -12,6 +12,36 @@ import {
 
 export const maxDuration = 60;
 
+/**
+ * Räkningarna ur en körning, utan artiklarna själva.
+ *
+ * Håller medvetet kvar `sourceHealth` i sin helhet: den är redan kort, och den
+ * är det första man vill se när en körning ser tunn ut.
+ */
+function buildRunSummary(result: Awaited<ReturnType<typeof executeDiscoveryJob>>) {
+  const {
+    perUser: _perUser,
+    results,
+    createdNewsItems,
+    ...counters
+  } = result;
+
+  return {
+    ...counters,
+    createdNewsItemCount: createdNewsItems.length,
+    perCompany: results.map((company) => ({
+      companyName: company.companyName,
+      found: company.found,
+      relevant: company.relevant,
+      created: company.created,
+      skipped: company.skipped,
+      archived: company.archived,
+      jobsCreated: company.jobs.created,
+      jobsSkipped: company.jobs.skipped,
+    })),
+  };
+}
+
 interface EmailDeliveryReport {
   userId: string;
   email: string;
@@ -197,9 +227,32 @@ export async function GET(request: Request): Promise<NextResponse> {
     // användarna får sina nyheter.
     const alertEmailId = await notifySourceHealth(result.sourceHealth);
 
+    const emailsSent = deliveries.filter((delivery) => delivery.sent).length;
+
+    // `?summary=1` utelämnar varje artikel och annons ur svaret.
+    //
+    // Rutinen efter varje ändring av en källa är att köra det här jobbet två
+    // gånger i rad och jämföra `created` mot `skipped`. Med tolv bolag blev det
+    // fulla svaret 40 000 tecken, vilket gjorde själva kontrollen dyr nog att
+    // vilja hoppa över — och den kontrollen är den som avslöjade att Bings
+    // `tid`-länkar satte dedupliceringen ur spel.
+    if (new URL(request.url).searchParams.get("summary") === "1") {
+      return NextResponse.json({
+        ...buildRunSummary(result),
+        emailsSent,
+        alertEmailId,
+        deliveries: deliveries.map(({ userId, email, sent, error }) => ({
+          userId,
+          email,
+          sent,
+          error,
+        })),
+      });
+    }
+
     return NextResponse.json({
       ...result,
-      emailsSent: deliveries.filter((delivery) => delivery.sent).length,
+      emailsSent,
       alertEmailId,
       deliveries,
     });
