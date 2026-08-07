@@ -70,14 +70,14 @@ test("tom eller saknad signatur avvisas utan att kasta", () => {
 test("länken bär både användare och signatur", () => {
   const url = buildUnsubscribeUrl(
     "user_1",
-    "https://foretagskollen.se",
+    "https://kundnytt.se",
     MED_HEMLIGHET,
   );
 
   assert.ok(url);
   const parsed = new URL(url);
 
-  assert.equal(parsed.origin, "https://foretagskollen.se");
+  assert.equal(parsed.origin, "https://kundnytt.se");
   assert.equal(parsed.pathname, "/avregistrera");
   assert.equal(parsed.searchParams.get("u"), "user_1");
   assert.equal(

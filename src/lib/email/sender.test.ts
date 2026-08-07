@@ -17,16 +17,16 @@ test("tom sträng räknas som osatt, inte som tom avsändare", () => {
 test("naken adress får avsändarnamn påklistrat", () => {
   // Att tyst tappa namnet vore att återinföra precis det fel som gjorde att
   // Gmail kastade inloggningsmejlen 2026-08-07.
-  const sender = resolveSender("notiser@mail.foretagskollen.se");
+  const sender = resolveSender("notiser@mail.kundnytt.se");
 
-  assert.equal(sender.from, "Företagskollen <notiser@mail.foretagskollen.se>");
+  assert.equal(sender.from, "Företagskollen <notiser@mail.kundnytt.se>");
   assert.equal(sender.isVerifiedDomain, true);
 });
 
 test("full form lämnas orörd", () => {
-  const sender = resolveSender("Kundtjänst <hej@mail.foretagskollen.se>");
+  const sender = resolveSender("Kundtjänst <hej@mail.kundnytt.se>");
 
-  assert.equal(sender.from, "Kundtjänst <hej@mail.foretagskollen.se>");
+  assert.equal(sender.from, "Kundtjänst <hej@mail.kundnytt.se>");
   assert.equal(sender.isVerifiedDomain, true);
 });
 

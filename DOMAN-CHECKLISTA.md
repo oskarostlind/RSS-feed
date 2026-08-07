@@ -1,4 +1,4 @@
-# Sätta igång foretagskollen.se
+# Sätta igång kundnytt.se
 
 Koden är klar och väntar på fyra miljövariabler. Inget behöver deployas om — allt
 styrs av variabler, och Vercel startar om funktionerna när de sparas.
@@ -15,14 +15,14 @@ som ännu inte får skicka, och de mejlen studsar.
    per dygn, vilket är tio gånger vad tjänsten behöver med en handfull
    användare.
 2. Gå till **Senders, Domains & Dedicated IPs → Domains → Add a domain**.
-3. Ange `mail.foretagskollen.se`. Alltså subdomänen, inte roten — går något fel
+3. Ange `mail.kundnytt.se`. Alltså subdomänen, inte roten — går något fel
    med avsändarryktet träffar det inte huvuddomänen, och du kan lägga en
    striktare DMARC-policy på roten senare.
 4. Brevo visar tre eller fyra DNS-poster. Ha dem framme till nästa steg.
 
 ## 2. Strato — lägg in DNS-posterna
 
-Under **Domäner → foretagskollen.se → DNS-inställningar**.
+Under **Domäner → kundnytt.se → DNS-inställningar**.
 
 Posterna Brevo ger dig ser ut ungefär så här. **Använd Brevos egna värden**, inte
 dessa — de är bara till för att du ska känna igen formen:
@@ -36,8 +36,8 @@ dessa — de är bara till för att du ska känna igen formen:
 
 Två fällor med Strato:
 
-- **Strato lägger till domänen automatiskt.** Skriver du `mail.foretagskollen.se`
-  i namnfältet blir posten `mail.foretagskollen.se.foretagskollen.se`. Skriv bara
+- **Strato lägger till domänen automatiskt.** Skriver du `mail.kundnytt.se`
+  i namnfältet blir posten `mail.kundnytt.se.kundnytt.se`. Skriv bara
   `mail`.
 - **Spridningen tar 15 minuter till några timmar.** Verifierar Brevo inte direkt
   är det oftast bara att vänta, inte att posten är fel.
@@ -61,7 +61,7 @@ Projektet `rss-feed`, **Settings → Environment Variables**, Production:
 | `SMTP_PORT` | `587` |
 | `SMTP_USER` | ditt Brevo-SMTP-användarnamn |
 | `SMTP_PASS` | SMTP-nyckeln |
-| `EMAIL_FROM` | `Företagskollen <notiser@mail.foretagskollen.se>` |
+| `EMAIL_FROM` | `Företagskollen <notiser@mail.kundnytt.se>` |
 
 Passa samtidigt på att **rätta eller ta bort `AUTH_URL`**. Värdet är
 `https://rss-feed-lime.vercel.` — en avklippt inklistring. Koden har ett
@@ -83,7 +83,7 @@ skarpt.
 
 ## 6. Domänen mot Vercel
 
-Skilt från mejlen. I Vercel, **Settings → Domains → Add** `foretagskollen.se`.
+Skilt från mejlen. I Vercel, **Settings → Domains → Add** `kundnytt.se`.
 Vercel säger vilken A- eller CNAME-post som ska in hos Strato. Säg till så gör
 jag det via Vercel-MCP:n.
 

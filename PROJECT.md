@@ -48,7 +48,7 @@ Status 2026-08-07:
 | Kostnadstak per användare | **Byggt.** Portföljtak härlett ur körningens kapacitet, se avsnitt 6 |
 | Missbruksskydd | **Byggt.** Tak för inloggningsmejl, se nedan |
 | GDPR-hantering | **Byggt.** Radering, export och integritetspolicy |
-| Verifierad mejldomän | **Väntar på DNS.** `foretagskollen.se` köpt 2026-08-07, se `DOMAN-CHECKLISTA.md` |
+| Verifierad mejldomän | **Väntar på DNS.** `kundnytt.se` köpt 2026-08-08 (foretagskollen.se var upptagen), se `DOMAN-CHECKLISTA.md` |
 
 **Öppen registrering kan byggas färdig utan mejldomänen, men inte släppas utan
 den.** Nya användare loggar in med magisk länk. Utan verifierad domän hamnar
@@ -80,7 +80,7 @@ faktiskt gör — ändras behandlingen ska sidan ändras i samma commit.
 ### Mejlleveransen
 
 Tjänsten heter **Företagskollen** sedan 2026-08-07 och domänen är
-`foretagskollen.se`.
+`kundnytt.se`.
 
 Utskicken går genom `lib/email/transport.ts`, som väljer **SMTP när
 `SMTP_HOST` är satt och Resend annars**. Leverantören är därmed konfiguration,

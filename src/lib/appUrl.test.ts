@@ -14,22 +14,22 @@ test("APP_URL vinner över allt annat", () => {
   const result = resolveAppBaseUrl(
     requestWith({ "x-forwarded-host": "fel.vercel.app" }),
     env({
-      APP_URL: "https://foretagskollen.se",
+      APP_URL: "https://kundnytt.se",
       VERCEL_PROJECT_PRODUCTION_URL: "ocksa-fel.vercel.app",
     }),
   );
 
-  assert.equal(result, "https://foretagskollen.se");
+  assert.equal(result, "https://kundnytt.se");
 });
 
 test("x-forwarded-host används framför requestens egen värd", () => {
   // Bakom Vercels proxy är `host` den interna värden. En länk dit når ingen.
   const result = resolveAppBaseUrl(
-    requestWith({ "x-forwarded-host": "foretagskollen.se" }),
+    requestWith({ "x-forwarded-host": "kundnytt.se" }),
     env({}),
   );
 
-  assert.equal(result, "https://foretagskollen.se");
+  assert.equal(result, "https://kundnytt.se");
 });
 
 test("utan request faller vi tillbaka på Vercels produktionsadress", () => {
@@ -43,8 +43,8 @@ test("utan request faller vi tillbaka på Vercels produktionsadress", () => {
 
 test("adress utan schema får https", () => {
   assert.equal(
-    resolveAppBaseUrl(undefined, env({ APP_URL: "foretagskollen.se" })),
-    "https://foretagskollen.se",
+    resolveAppBaseUrl(undefined, env({ APP_URL: "kundnytt.se" })),
+    "https://kundnytt.se",
   );
 });
 
@@ -52,9 +52,9 @@ test("sökväg och frågesträng skalas bort till origin", () => {
   assert.equal(
     resolveAppBaseUrl(
       undefined,
-      env({ APP_URL: "https://foretagskollen.se/dashboard?a=1" }),
+      env({ APP_URL: "https://kundnytt.se/dashboard?a=1" }),
     ),
-    "https://foretagskollen.se",
+    "https://kundnytt.se",
   );
 });
 
