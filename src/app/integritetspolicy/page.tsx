@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 export const metadata = {
-  title: "Integritetspolicy — Företagskollen",
+  title: "Integritetspolicy — Kundnytt",
 };
 
 /**
@@ -49,7 +49,7 @@ export default function IntegritetspolicyPage() {
 
       <Avsnitt rubrik="Vem som ansvarar">
         <p>
-          Företagskollen drivs av Oskar Östlind. Frågor om dina uppgifter, eller
+          Kundnytt drivs av Oskar Östlind. Frågor om dina uppgifter, eller
           begäran om registerutdrag, går till{" "}
           <a
             className="underline underline-offset-4"

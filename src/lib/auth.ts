@@ -20,7 +20,7 @@ function magicLinkFrom(): string {
 
 function buildMagicLinkEmailText(url: string): string {
   return [
-    "Logga in på Företagskollen",
+    "Logga in på Kundnytt",
     "",
     "Öppna länken nedan för att logga in. Den är giltig i 24 timmar och kan",
     "bara användas en gång.",
@@ -47,7 +47,7 @@ function buildMagicLinkEmailHtml(url: string): string {
             <tr>
               <td style="padding: 32px 28px;">
                 <p style="margin: 0 0 8px 0; font-size: 12px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: #71717a;">
-                  Företagskollen
+                  Kundnytt
                 </p>
                 <h1 style="margin: 0 0 12px 0; font-size: 24px; line-height: 1.3; color: #18181b;">
                   Logga in
@@ -128,7 +128,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         await sendEmail({
           from: magicLinkFrom(),
           to: identifier,
-          subject: "Din inloggningslänk till Företagskollen",
+          subject: "Din inloggningslänk till Kundnytt",
           html: buildMagicLinkEmailHtml(url),
           text: buildMagicLinkEmailText(url),
         });

@@ -16,13 +16,13 @@
  * mätning 2026-08-07 visade att inloggningsmejlen därifrån kastades av Gmail
  * utan att ens hamna i skräpposten. Duger till utveckling, inte till drift.
  */
-const SANDBOX_FROM = "Företagskollen <onboarding@resend.dev>";
+const SANDBOX_FROM = "Kundnytt <onboarding@resend.dev>";
 
 /**
  * Namnet syns i mejllistan och är det enda mottagaren känner igen innan hen
  * öppnat. Utan det stod det bara "onboarding".
  */
-const DISPLAY_NAME = "Företagskollen";
+const DISPLAY_NAME = "Kundnytt";
 
 export interface SenderStatus {
   /** Adressen som faktiskt används, färdig för `from`. */

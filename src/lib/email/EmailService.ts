@@ -231,10 +231,10 @@ export class EmailService {
       const sent = await sendEmail({
         from: this.fromEmail,
         to: this.adminEmail,
-        subject: `Företagskollen: ${names} levererade inte`,
+        subject: `Kundnytt: ${names} levererade inte`,
         html,
         text: [
-          "Källvarning från Företagskollen",
+          "Källvarning från Kundnytt",
           "",
           ...rows.map((row) => `${row.source} [${row.verdict}]: ${row.note}`),
         ].join("\n"),

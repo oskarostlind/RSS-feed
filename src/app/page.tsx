@@ -38,7 +38,7 @@ export default async function Home() {
     <div className="flex min-h-full flex-col bg-zinc-50 dark:bg-black">
       <main className="mx-auto w-full max-w-2xl flex-1 px-6 py-20">
         <p className="text-xs font-semibold uppercase tracking-widest text-zinc-500 dark:text-zinc-400">
-          Företagskollen
+          Kundnytt
         </p>
         <h1 className="mt-3 text-4xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
           Få veta när det händer något hos dina kunder
@@ -93,7 +93,7 @@ export default async function Home() {
 
       <footer className="border-t border-zinc-200 py-6 dark:border-zinc-800">
         <div className="mx-auto flex max-w-2xl flex-wrap gap-x-5 gap-y-2 px-6 text-xs text-zinc-500 dark:text-zinc-400">
-          <span>Företagskollen</span>
+          <span>Kundnytt</span>
           <Link href="/integritetspolicy" className="underline-offset-4 hover:underline">
             Integritetspolicy
           </Link>

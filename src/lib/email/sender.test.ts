@@ -5,7 +5,7 @@ import { resolveSender } from "./sender.ts";
 test("utan EMAIL_FROM används sandlådedomänen", () => {
   const sender = resolveSender(undefined);
 
-  assert.equal(sender.from, "Företagskollen <onboarding@resend.dev>");
+  assert.equal(sender.from, "Kundnytt <onboarding@resend.dev>");
   assert.equal(sender.isVerifiedDomain, false);
 });
 
@@ -19,7 +19,7 @@ test("naken adress får avsändarnamn påklistrat", () => {
   // Gmail kastade inloggningsmejlen 2026-08-07.
   const sender = resolveSender("notiser@mail.kundnytt.se");
 
-  assert.equal(sender.from, "Företagskollen <notiser@mail.kundnytt.se>");
+  assert.equal(sender.from, "Kundnytt <notiser@mail.kundnytt.se>");
   assert.equal(sender.isVerifiedDomain, true);
 });
 

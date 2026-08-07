@@ -61,7 +61,7 @@ Projektet `rss-feed`, **Settings → Environment Variables**, Production:
 | `SMTP_PORT` | `587` |
 | `SMTP_USER` | ditt Brevo-SMTP-användarnamn |
 | `SMTP_PASS` | SMTP-nyckeln |
-| `EMAIL_FROM` | `Företagskollen <notiser@mail.kundnytt.se>` |
+| `EMAIL_FROM` | `Kundnytt <notiser@mail.kundnytt.se>` |
 
 Passa samtidigt på att **rätta eller ta bort `AUTH_URL`**. Värdet är
 `https://rss-feed-lime.vercel.` — en avklippt inklistring. Koden har ett

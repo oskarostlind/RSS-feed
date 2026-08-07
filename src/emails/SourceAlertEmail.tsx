@@ -40,7 +40,7 @@ export function SourceAlertEmail({ rows, ranAt }: SourceAlertEmailProps) {
           <Container className="mx-auto max-w-[560px] px-4 py-8">
             <Section className="rounded-xl border border-solid border-red-200 bg-white px-6 py-5">
               <Text className="m-0 mb-2 text-xs font-semibold uppercase tracking-[0.08em] text-red-600">
-                Företagskollen — källvarning
+                Kundnytt — källvarning
               </Text>
               <Heading className="m-0 mb-3 text-xl font-semibold leading-tight text-zinc-900">
                 {rows.length === 1

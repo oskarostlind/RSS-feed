@@ -1,4 +1,4 @@
-# Företagskollen — målbeskrivning
+# Kundnytt — målbeskrivning
 
 Detta dokument är den gemensamma kartan för projektet. Det beskriver vad vi
 bygger, hur vi vet att vi lyckats, och vad som fortfarande är olöst. Uppdatera
@@ -79,7 +79,7 @@ faktiskt gör — ändras behandlingen ska sidan ändras i samma commit.
 
 ### Mejlleveransen
 
-Tjänsten heter **Företagskollen** sedan 2026-08-07 och domänen är
+Tjänsten heter **Kundnytt** sedan 2026-08-08 och domänen är
 `kundnytt.se`.
 
 Utskicken går genom `lib/email/transport.ts`, som väljer **SMTP när

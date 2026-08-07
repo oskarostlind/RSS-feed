@@ -28,7 +28,7 @@ const TESTARTIKEL = {
   id: "test",
   title: "TESTMEJL — Peges i Ljusdal AB förvärvar Jonsson & Paulsson",
   snippet:
-    "Det här är ett testutskick från Företagskollen. Innehållet är påhittat och ingen bevakning har utlösts.",
+    "Det här är ett testutskick från Kundnytt. Innehållet är påhittat och ingen bevakning har utlösts.",
   url: "https://www.di.se/",
   publishedAt: new Date(),
   companyName: "Peges i Ljusdal AB (test)",

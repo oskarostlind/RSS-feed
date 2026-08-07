@@ -51,7 +51,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
                 {" "}
                 Hittar du den inte i inkorgen:{" "}
                 <strong>kolla skräpposten</strong> och sök på
-                &quot;Företagskollen&quot;. Avsändaren är en delad
+                &quot;Kundnytt&quot;. Avsändaren är en delad
                 Resend-adress tills vi har en egen verifierad domän, och den
                 sorteras ofta undan första gången.
               </>
