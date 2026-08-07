@@ -3,6 +3,25 @@
 Vad de automatiska körningarna gjort, senast överst. Kort med flit — det här är
 överblicken, inte dokumentationen. Den ligger i `PROJECT.md`.
 
+## 2026-08-07 10:50
+
+**Byggt:** `9d1e9d4` — portföljtak per användare (§9.10). Uträknat ur
+körningens kapacitet i stället för valt: budget delat med tid per grupp, gånger
+parallelliteten. Blir 110 bolag med standardvärdena. Importen gör delimport i
+stället för att avvisa hela filen när bara en del ryms.
+
+**Värt att notera:** taket landar på 110 medan §1 talar om "över 100 bolag".
+Standardinställningen ligger alltså precis på gränsen för den produkt vi säger
+oss bygga. Jag valde att låta det synas i stället för att runda upp — det säger
+något om var systemet faktiskt står.
+
+**Mätning efter:** 33 enhetstester, 11 produktionskontroller, `tsc` rent,
+`sourceHealth.healthy: true`, dubbelkörning ger `created: 0`.
+
+**Trasigt när jag slutade:** ingenting.
+
+---
+
 ## 2026-08-07 10:42
 
 Tredje passet samma körning.

@@ -167,11 +167,20 @@ verifierad domän innan någon annan kan få mejl.
 **Ingen kostnadskontroll per användare.** Med öppen registrering kan en
 användare lägga in obegränsat många bolag.
 
-**Delvis åtgärdat 2026-08-07:** massimporten har ett tak på 500 bolag per
-uppladdning och 2 MB per fil. Det hindrar en enskild olycka men inte tio
-uppladdningar i rad, och det finns fortfarande inget tak på hur många bolag ett
-konto totalt kan bevaka. Ett riktigt tak hör ihop med kön: taket ska vara det
-antal bolag en morgonkörning faktiskt hinner med.
+**Åtgärdat 2026-08-07.** Två tak: 500 bolag per uppladdning och 2 MB per fil,
+plus ett tak för hela portföljen som gäller oavsett hur bolagen kommit in.
+
+Portföljtaket är **uträknat, inte valt**: tidsbudgeten delat med tiden per grupp,
+gånger parallelliteten. Med standardvärdena blir det 110 bolag. Höjs
+`DISCOVERY_CONCURRENCY` följer taket med automatiskt, vilket är meningen — den
+som vill bevaka fler bolag ska först göra körningen snabbare, inte skriva upp en
+siffra. `MAX_COMPANIES_PER_USER` går över uträkningen, med ett absolut tak på
+1 000.
+
+**Att taket landar på 110 är i sig ett besked.** Avsnitt 1 talar om "över 100
+bolag", så standardinställningen ligger precis på gränsen för den produkt vi
+säger oss bygga. En riktig portfölj kräver antingen högre parallellitet eller
+fan-out.
 
 **Schemat är inte reproducerbart.** Det finns ingen `prisma/migrations`-katalog
 — tabellerna har bara någonsin skapats med `prisma db push` från en laptop. Och
@@ -313,5 +322,5 @@ personuppgiftspolicy och rutin för radering innan öppen registrering.
 8. Verifierad mejldomän i Resend
 9. Överväg att slå av GNews. Noll träffar i varje mätning, ett anrop per bolag,
    och den enda källa som kan slå i en kvot — se avsnitt 7
-10. Kostnadstak per **användare**, inte bara per import. Importtaket hindrar en
-    enskild uppladdning, men inte tio uppladdningar i rad
+10. ~~Kostnadstak per **användare**, inte bara per import~~ — **klart
+    2026-08-07.** Portföljtak härlett ur körningens kapacitet, se avsnitt 6
