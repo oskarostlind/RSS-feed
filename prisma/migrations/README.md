@@ -35,19 +35,31 @@ npx prisma migrate dev --name beskrivande_namn
 Det skriver både SQL-filen och kör den lokalt. Committa filen tillsammans med
 schemaändringen.
 
-## Det som återstår
+## Byggkommandot kör migrationerna
 
-**Byggkommandot kör fortfarande inte migrationerna.** `package.json` har
-`prisma generate && next build`, vilket genererar klienten men aldrig rör
-databasen. Att lägga till `prisma migrate deploy` skulle stänga hålet helt: en
-ny eller återställd databas skulle då få schemat automatiskt vid nästa deploy.
-
-Det steget är medvetet inte taget här, eftersom det ändrar vad varje deploy gör
-mot produktionsdatabasen och därför är ett beslut som bör fattas med öppna ögon
-och inte av en automatisk körning. Ändringen är i så fall:
+**Sedan 2026-08-07 är hålet stängt.** `package.json` har numera:
 
 ```json
 "build": "prisma migrate deploy && prisma generate && next build"
 ```
 
-Baseline-migrationen är förutsättningen för det, och den är nu på plats.
+En ny eller återställd databas får därmed schemat automatiskt vid nästa deploy,
+och `P2021 — The table public.Company does not exist` kan inte längre uppstå av
+att någon pekat om `DATABASE_URL`.
+
+Kontrollerat före ändringen: baseline `0_init` är markerad som körd i
+produktionsdatabasen, och `prisma migrate deploy` mot den svarar
+`No pending migrations to apply`. Kommandot är alltså en no-op mot en databas
+som redan är i synk — även mot Neons pooler-endpoint, vilket var den andra
+osäkerheten.
+
+### Priset, som du bör känna till
+
+**Deployen beror nu på att databasen svarar.** Är Neon nere eller
+`DATABASE_URL` fel, misslyckas bygget i stället för att gå igenom med en app som
+inte kan läsa något. Det är avsiktligt — ett trasigt bygge syns, en tyst tom
+databas gör inte det, och det var precis den tystnaden som fällde morgonjobbet
+2026-08-07. Men det betyder att en databasincident numera också blockerar
+utrullningar.
+
+Vill du backa: ta bort `prisma migrate deploy && ` ur `build`.
