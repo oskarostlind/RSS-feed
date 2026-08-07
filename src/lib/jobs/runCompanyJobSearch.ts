@@ -7,6 +7,8 @@ export interface MorningSummaryJobAd extends PersistedJobAdRow {
 }
 
 export interface CompanyJobSearchResult {
+  /** Falskt när JobTech-anropet kastade. Skiljer tomt svar från trasig källa. */
+  ok: boolean;
   /** Antal annonser fritextsökningen gav, före arbetsgivarmatchning. */
   found: number;
   /** Antal som faktiskt har bolaget som arbetsgivare. */
@@ -19,6 +21,7 @@ export interface CompanyJobSearchResult {
 }
 
 export const EMPTY_JOB_SEARCH_RESULT: CompanyJobSearchResult = {
+  ok: true,
   found: 0,
   matched: 0,
   created: 0,
@@ -48,6 +51,7 @@ export async function runCompanyJobSearch(
   );
 
   return {
+    ok: true,
     found: hits.length,
     matched: matched.length,
     created,

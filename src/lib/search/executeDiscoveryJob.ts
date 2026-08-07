@@ -9,6 +9,13 @@ import {
   startDeadline,
 } from "@/lib/search/discoveryBudget";
 import { resolveWindowDays } from "@/lib/search/recency";
+import {
+  assessSourceHealth,
+  tallyCompanyOutcome,
+  type SourceHealthReport,
+  type SourceLabel,
+  type SourceTally,
+} from "@/lib/search/sourceHealth";
 import { RssFeedService } from "@/lib/search/RssFeedService";
 import { SearchService } from "@/lib/search/SearchService";
 import {
@@ -46,6 +53,11 @@ export interface DiscoveryJobResult {
   /** Hur lång tid sökningen tog, exklusive mejlutskick. */
   discoveryDurationMs: number;
   concurrency: number;
+  /**
+   * Källornas tillstånd, härlett ur den här körningen. `silent` är det som ska
+   * väcka någon: en källa som svarar utan fel men inget säger.
+   */
+  sourceHealth: SourceHealthReport;
   perUser: UserDiscoveryResult[];
   results: CompanyDiscoveryResult[];
   createdNewsItems: MorningSummaryNewsItem[];
@@ -131,6 +143,7 @@ export async function executeDiscoveryJob(
   const deadline = startDeadline(resolveBudgetMs());
 
   const byUser = new Map<string, UserDiscoveryResult>();
+  const sourceTotals = new Map<SourceLabel, SourceTally>();
   let processed = 0;
 
   for (const group of chunk(companies, concurrency)) {
@@ -174,6 +187,10 @@ export async function executeDiscoveryJob(
       entry.createdNewsItems.push(...result.createdItems);
       entry.possibleNewsItems.push(...result.createdPossibleItems);
       entry.createdJobAds.push(...result.jobs.createdItems);
+
+      for (const outcome of result.perSource) {
+        tallyCompanyOutcome(sourceTotals, outcome.source, outcome);
+      }
     });
 
     processed += group.length;
@@ -198,6 +215,7 @@ export async function executeDiscoveryJob(
     companiesSkippedForTime: companies.length - processed,
     discoveryDurationMs: deadline.elapsedMs(),
     concurrency,
+    sourceHealth: assessSourceHealth([...sourceTotals.values()]),
     perUser,
     results,
     createdNewsItems: perUser.flatMap((entry) => entry.createdNewsItems),

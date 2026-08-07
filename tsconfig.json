@@ -6,6 +6,10 @@
     "skipLibCheck": true,
     "strict": true,
     "noEmit": true,
+    // Testfilerna körs av Nodes inbyggda testkörare utan byggsteg, och Node
+    // kräver att importen anger filändelsen. Tillåtet eftersom vi ändå aldrig
+    // emitterar — Next bygger med turbopack, inte med tsc.
+    "allowImportingTsExtensions": true,
     "esModuleInterop": true,
     "module": "esnext",
     "moduleResolution": "bundler",
