@@ -68,12 +68,14 @@ vara generös, och tveksamma träffar ska hellre med än bort.
 |---|---|---|
 | Nyhetsartiklar | Google News RSS | **Byggt.** Täcker lokal- och branschpress |
 | Pressmeddelanden | Cision, MyNewsdesk | Delvis — kommer med via Google News, egna flöden återstår |
-| Registerhändelser | Bolagsverket, Post- och Inrikes Tidningar | **Ej byggt.** Konkurser, ägarbyten, styrelseändringar, bokslut |
-| Jobbannonser | Arbetsförmedlingens JobTech (öppet API) | **Ej byggt.** Rekrytering avslöjar expansion före pressen |
+| Registerhändelser | Bolagsverket, Post- och Inrikes Tidningar | **Blockerat.** Ingen öppen väg in — se avsnitt 7 |
+| Jobbannonser | Arbetsförmedlingens JobTech (öppet API) | **Byggt 2026-08-07.** Egen modell `JobAd`, egen sektion i mejlet |
 
 Registerhändelser och jobbannonser är strukturerad data, inte fritext. De
 behöver egna datamodeller — dagens `NewsItem` med rubrik och länk passar dåligt
-för "styrelseändring registrerad 2026-04-01".
+för "styrelseändring registrerad 2026-04-01". Jobbannonserna fick därför en
+egen `JobAd` med yrke, ort och arbetsgivare som egna fält: det är de som gör en
+annons till en expansionssignal, och de går inte att utläsa ur en rubrik.
 
 ### Så kommer bolagen in
 
@@ -107,15 +109,30 @@ schemat lades på den nya databasen, medan tabellerna var tomma — mot en
 databas med data hade samma ändring krävt att man först hittade och slog ihop
 befintliga dubbletter.
 
-**Cron-arkitekturen håller inte för över 100 bolag.** Vercel Hobby ger en
-körning per dygn och 60 sekunders maxtid. Med dagens ~350 ms per bolag räcker
-det till 30–50 bolag. Vid 100+ krävs Vercel Pro och en kö där varje körning
-betar av en delmängd, alternativt fan-out till parallella funktioner.
+~~**Cron-arkitekturen håller inte för över 100 bolag.**~~ **Delvis åtgärdat
+2026-08-07.** Bolagen bearbetas nu i parallella grupper om fem
+(`DISCOVERY_CONCURRENCY`, tak 20) i stället för ett i taget, med en tidsbudget
+på 45 av 60 sekunder som avgör om ännu en grupp startas.
+`Company.lastCheckedAt` gör budgeten rättvis: bolagen hämtas äldst kontrollerad
+först, så hinner körningen bara halva portföljen tar nästa körning den andra
+halvan i stället för att svälta samma bolag varje dygn. Körningen rapporterar
+`companiesSkippedForTime` — ett tal över noll betyder att taket faktiskt nåtts.
 
-Massimporten och kö-arkitekturen hänger ihop: i samma stund som en användare
-kan ladda upp en Excel med 150 rader spricker morgonkörningen på tidsgränsen.
-Bygger vi importen först får vi en funktion som omedelbart sänker systemet. Kön
-ska därför på plats först.
+Mätning 2026-08-07: två bolag på 2,1 sekunder, varav Ericsson med 109
+RSS-träffar och 25 jobbannonser. Det räcker inte för att extrapolera till 100
+bolag med säkerhet, men flaskhalsen är nätverksväntan och den parallelliseras
+nu.
+
+**Kvarstår:** taket är höjt, inte borttaget. Vid några hundra bolag krävs
+fan-out till parallella funktioner — tjänsten anropar sig själv så att varje
+delmängd får egna 60 sekunder. Det valdes bort nu därför att det lägger till en
+självanropande nätverksväg och en ny säkerhetsyta för ett tak som ännu inte
+nåtts. Vercel Hobbys *en körning per dygn* är fortfarande en separat gräns som
+bara Pro löser.
+
+Massimporten och kö-arkitekturen hänger fortfarande ihop, men mindre hårt än
+förut: en Excel med 150 rader spräcker inte längre körningen, den fördelas över
+flera dygn tills taket höjs.
 
 **`AUTH_URL` i produktionsmiljön är felaktig.** Värdet är
 `https://rss-feed-lime.vercel.` — en avklippt inklistring som tappat `app`.
@@ -187,6 +204,26 @@ Bing-träffar. Upptäcktes 2026-08-07 genom att köra morgonjobbet två gånger 
 rad och jämföra `created` mot `skipped`. Den kontrollen är värd att göra om
 efter varje ändring av en källa.
 
+**Registerhändelser är stängda bakom registrering.** Provat 2026-08-07: Post-
+och Inrikes Tidningars sök-API (`poit.bolagsverket.se`) svarar med en
+WAF-avvisning ("Request Rejected") på programmatiska anrop, och Bolagsverkets
+öppna data-API:er kräver ett registrerat klientkonto med API-nyckel. Ingen av
+dem går att bygga vidare på utan att du registrerar dig som utvecklare hos
+Bolagsverket. **Det är det enda som blockerar punkten** — koden runt omkring
+har redan mönstret från jobbannonserna att följa.
+
+**Jobbannonser matchas på substräng i arbetsgivarnamnet.** Fritextsökningen mot
+JobTech träffar hela annonstexten, så spärren i `employerMatch.ts` kräver att
+varumärkesledet finns i annonsens arbetsgivar- eller arbetsställefält. Den
+sorterar bort bemanningsbolag som söker folk *till* bolaget — mätning
+2026-08-07 på "Ericsson": 25 hittade, 6 matchade, 19 bortsorterade.
+
+Men den släpper igenom bolag vars namn *innehåller* varumärket: "Lennart
+Ericsson Fastigheter AB" matchade "Ericsson". Att kräva ordgräns i stället för
+substräng skulle laga just det, men samtidigt missa koncernbolag som
+"Pegesgruppen". Enligt avsnitt 4 väger täckning tyngre, så substräng står kvar
+— men det är en känd falsk positiv, inte en förbisedd.
+
 **Upphovsrätt vid vidareförmedling.** Att länka är fritt. Men EU:s
 DSM-direktiv artikel 15 ger presspublicister en närstående rättighet till
 utdrag ur artiklar, och den gäller i svensk rätt. Att i en **kommersiell**
@@ -215,9 +252,16 @@ personuppgiftspolicy och rutin för radering innan öppen registrering.
    publiceringsdatum släpps igenom enligt avvägningen i avsnitt 4
 2. ~~Rätta `NewsItem`-unikheten till `@@unique([companyId, url])`~~ — **klart
    2026-08-07**, se avsnitt 6
-3. Registerhändelser från Bolagsverket och Post- och Inrikes Tidningar
-4. Jobbannonser via JobTech
-5. Kö-arkitektur för 100+ bolag
-6. Massimport av bolag från `.xlsx` och `.csv` — se avsnitt 5. Förutsätter
-   punkt 5, annars sänker första stora importen morgonkörningen
-7. Verifierad mejldomän i Resend
+3. ~~Registerhändelser från Bolagsverket och Post- och Inrikes Tidningar~~ —
+   **blockerad 2026-08-07.** Båda kräver registrering hos Bolagsverket, se
+   avsnitt 7. Väntar på att du skaffar ett utvecklarkonto
+4. ~~Jobbannonser via JobTech~~ — **klart 2026-08-07.** Egen modell `JobAd`,
+   arbetsgivarspärr, egen sektion i mejlet, avstängbar med `JOBTECH_ENABLED`.
+   Diagnostik på `/api/debug/jobtech-test`
+5. ~~Kö-arkitektur för 100+ bolag~~ — **delvis klart 2026-08-07.**
+   Parallellisering, tidsbudget och markör, se avsnitt 6. Fan-out återstår
+6. Larm när en källa tystnar — jämför utfallet mot ett känt referensvärde och
+   säg till när en källa ger noll utan att kasta fel. Se avsnitt 7; en tyst
+   nolla ser i dag ut som "inga nyheter"
+7. Massimport av bolag från `.xlsx` och `.csv` — se avsnitt 5
+8. Verifierad mejldomän i Resend
