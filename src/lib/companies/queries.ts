@@ -19,10 +19,22 @@ export interface CompanyNewsHistoryRow {
   createdAt: Date;
 }
 
+export interface CompanyJobAdRow {
+  id: string;
+  headline: string;
+  employerName: string;
+  occupation: string | null;
+  municipality: string | null;
+  url: string;
+  publishedAt: Date | null;
+  deadline: Date | null;
+}
+
 export interface CompanyWithNewsItems {
   id: string;
   name: string;
   newsItems: CompanyNewsHistoryRow[];
+  jobAds: CompanyJobAdRow[];
 }
 
 export async function getAllCompanies(userId: string): Promise<CompanyRow[]> {
@@ -83,6 +95,19 @@ export async function getCompanyWithNewsItems(
           status: true,
           publishedAt: true,
           createdAt: true,
+        },
+        orderBy: [{ publishedAt: "desc" }, { createdAt: "desc" }],
+      },
+      jobAds: {
+        select: {
+          id: true,
+          headline: true,
+          employerName: true,
+          occupation: true,
+          municipality: true,
+          url: true,
+          publishedAt: true,
+          deadline: true,
         },
         orderBy: [{ publishedAt: "desc" }, { createdAt: "desc" }],
       },

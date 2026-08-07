@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { CompanyHistoryItem } from "@/app/dashboard/companies/_components/CompanyHistoryItem";
+import { CompanyJobAdList } from "@/app/dashboard/companies/_components/CompanyJobAdList";
 import { CompanyNewsSearchButton } from "@/app/dashboard/companies/_components/CompanyNewsSearchButton";
 import { NewsItemStatus } from "@/generated/prisma/enums";
 import { auth } from "@/lib/auth";
@@ -27,7 +28,7 @@ export default async function CompanyDetailPage({
     notFound();
   }
 
-  const { newsItems } = company;
+  const { newsItems, jobAds } = company;
   const unreadCount = newsItems.filter(
     (item) => item.status === NewsItemStatus.PENDING,
   ).length;
@@ -52,6 +53,11 @@ export default async function CompanyDetailPage({
             {newsItems.length}{" "}
             {newsItems.length === 1 ? "artikel" : "artiklar"} · {unreadCount}{" "}
             olästa · {confirmedCount} godkända
+            {jobAds.length > 0
+              ? ` · ${jobAds.length} ${
+                  jobAds.length === 1 ? "jobbannons" : "jobbannonser"
+                }`
+              : ""}
           </p>
           <div className="mt-4">
             <CompanyNewsSearchButton
@@ -63,7 +69,9 @@ export default async function CompanyDetailPage({
       </header>
 
       <main className="mx-auto max-w-3xl px-6 py-8">
-        {newsItems.length === 0 ? (
+        <CompanyJobAdList jobAds={jobAds} />
+
+        {newsItems.length === 0 && jobAds.length === 0 ? (
           <div className="rounded-xl border border-dashed border-zinc-300 bg-white px-8 py-16 text-center dark:border-zinc-700 dark:bg-zinc-950">
             <p className="text-lg font-medium text-zinc-900 dark:text-zinc-50">
               Ingen historik ännu
@@ -73,11 +81,19 @@ export default async function CompanyDetailPage({
             </p>
           </div>
         ) : (
-          <ul className="grid grid-cols-1 gap-4">
-            {newsItems.map((item) => (
-              <CompanyHistoryItem key={item.id} item={item} />
-            ))}
-          </ul>
+          <section>
+            {jobAds.length > 0 ? (
+              <h2 className="mb-3 text-lg font-semibold text-zinc-900 dark:text-zinc-50">
+                Artiklar
+              </h2>
+            ) : null}
+
+            <ul className="grid grid-cols-1 gap-4">
+              {newsItems.map((item) => (
+                <CompanyHistoryItem key={item.id} item={item} />
+              ))}
+            </ul>
+          </section>
         )}
       </main>
     </>
