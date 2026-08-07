@@ -4,6 +4,7 @@ import {
   filterAndRankHits,
   isBlockedDomain,
   isCompanyOwnDomain,
+  isQuotePage,
   scoreHit,
 } from "./relevance.ts";
 import type { SearchHit } from "./types.ts";
@@ -140,4 +141,44 @@ test("de två graderna överlappar inte", () => {
     decision.highConfidence.length + decision.lowConfidence.length,
     decision.kept.length,
   );
+});
+
+test("kurssidor känns igen på sökvägen, inte på domänen", () => {
+  // Den observerade träffen: nådde den säkra delen av morgonmejlet 2026-08-07.
+  assert.equal(
+    isQuotePage("https://se.investing.com/equities/fagerhult"),
+    true,
+  );
+  assert.equal(isQuotePage("https://www.di.se/bors/aktier/fagerhult"), true);
+  assert.equal(
+    isQuotePage("https://www.avanza.se/aktier/om-aktien.html/5361/fagerhult"),
+    true,
+  );
+});
+
+test("nyheter på samma sajter släpps igenom", () => {
+  // Hela poängen med att matcha på sökväg: di.se är en av våra bästa källor,
+  // och en domänspärr hade tystat den.
+  assert.equal(isQuotePage("https://www.di.se/nyheter/fagerhult-vaxer/"), false);
+  assert.equal(
+    isQuotePage("https://se.investing.com/news/stock-market-news/artikel-123"),
+    false,
+  );
+  assert.equal(isQuotePage("https://www.ljusdalsposten.se/artikel"), false);
+});
+
+test("kurssidor avvisas av scoreHit med eget skäl", () => {
+  const hit: SearchHit = {
+    title: "Fagerhult AB (FAG)",
+    url: "https://se.investing.com/equities/fagerhult",
+    snippet: "FAG aktiekurs - Nedanför hittar du information om Fagerhult AB",
+    publishedAt: new Date("2026-08-07T02:21:00.000Z"),
+  };
+
+  const result = scoreHit(hit, "Fagerhult AB");
+
+  assert.equal(result.ok, false);
+  if (!result.ok) {
+    assert.equal(result.reason, "quote-page");
+  }
 });

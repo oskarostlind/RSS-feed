@@ -28,6 +28,34 @@ const BLOCKED_DOMAINS = [
 ] as const;
 
 /**
+ * Kurssidor — instrumentsidor för en aktie, inte artiklar om bolaget.
+ *
+ * De kan inte blockeras på domän, eftersom sajterna nedan också publicerar
+ * riktiga nyheter som vi vill ha. Skillnaden ligger i sökvägen: en artikel har
+ * en rubrik i URL:en, en kurssida har instrumentets namn under `/equities/`,
+ * `/quote/` eller motsvarande.
+ *
+ * Varför det spelar roll mer än en vanlig falsk positiv: en kurssida sätter
+ * dagens datum varje dygn, så den ser alltid färsk ut och passerar
+ * tidsfönstret för alltid. `Fagerhult AB (FAG)` från se.investing.com nådde
+ * den **säkra** delen av morgonmejlet 2026-08-07.
+ *
+ * Detta står inte i konflikt med avvägningen i målbildens avsnitt 4 om att
+ * hellre släppa igenom skräp än att missa en nyhet. En kurssida är inte en
+ * tveksam nyhet — den är inte en nyhet alls.
+ */
+const QUOTE_PAGE_PATTERNS: readonly { domain: string; path: RegExp }[] = [
+  { domain: "investing.com", path: /^\/(equities|indices|commodities)\// },
+  { domain: "marketscreener.com", path: /^\/quote\// },
+  { domain: "yahoo.com", path: /^\/quote\// },
+  { domain: "avanza.se", path: /^\/aktier\// },
+  { domain: "nordnet.se", path: /^\/(aktiekurser|marknaden)\// },
+  { domain: "di.se", path: /^\/bors\// },
+  { domain: "borsdata.se", path: /^\/(aktier|instrument)\// },
+  { domain: "tradingview.com", path: /^\/symbols\// },
+];
+
+/**
  * Händelser som är affärsmässigt intressanta för en account manager.
  * Träffar här lyfts i mejlet — men saknad träff diskvalificerar inte.
  */
@@ -110,6 +138,31 @@ export function isBlockedDomain(url: string): boolean {
 }
 
 /**
+ * Kurssida på en sajt som i övrigt publicerar nyheter. Se
+ * `QUOTE_PAGE_PATTERNS` för varför sökvägen och inte domänen avgör.
+ */
+export function isQuotePage(url: string): boolean {
+  const host = hostnameOf(url);
+
+  if (!host) {
+    return false;
+  }
+
+  let path: string;
+  try {
+    path = new URL(url).pathname;
+  } catch {
+    return false;
+  }
+
+  return QUOTE_PAGE_PATTERNS.some(
+    (pattern) =>
+      (host === pattern.domain || host.endsWith(`.${pattern.domain}`)) &&
+      pattern.path.test(path),
+  );
+}
+
+/**
  * Bolagets egen sajt är inte en oberoende nyhetskälla. Vi jämför mot
  * varumärkesledet: "peges" filtrerar bort peges.se men inte
  * verkstadstidningen.se.
@@ -145,6 +198,10 @@ export function scoreHit(
 ): { ok: true; scored: ScoredHit } | { ok: false; reason: string } {
   if (isBlockedDomain(hit.url)) {
     return { ok: false, reason: "blocked-domain" };
+  }
+
+  if (isQuotePage(hit.url)) {
+    return { ok: false, reason: "quote-page" };
   }
 
   if (isCompanyOwnDomain(hit.url, companyName)) {
