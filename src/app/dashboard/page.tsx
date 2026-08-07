@@ -37,8 +37,8 @@ export default async function DashboardPage() {
               Inkorgen är tom
             </p>
             <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
-              Kör en sökning via API:et för att hämta nya nyheter, eller vänta
-              på nästa schemalagda körning.
+              Nya nyheter hämtas automatiskt varje morgon. Du kan också söka
+              direkt från ett bolags sida.
             </p>
           </div>
         ) : (

@@ -3,6 +3,44 @@
 Vad de automatiska körningarna gjort, senast överst. Kort med flit — det här är
 överblicken, inte dokumentationen. Den ligger i `PROJECT.md`.
 
+## 2026-08-07 10:58
+
+**Byggt:**
+
+- `ef970a5` — riktig README. Den var fortfarande create-next-app-mallen, i ett
+  publikt repo
+- `9fe50a6` — tester för relevansfiltret och frågebyggaren, plus buggen de
+  hittade
+
+**Buggen är värd att läsa om.** `stripLegalSuffix` krävde blanksteg före
+bolagsformen, så "AB" som helt bolagsnamn strippades inte. En importrad med bara
+"AB" hade blivit en bevakning vars sökfråga var `"AB"` — en fras som träffar i
+stort sett varje svensk artikel, varje morgon. Importens rimlighetskontroll
+släppte igenom den eftersom den bara mätte stränglängd. Båda ändarna lagade:
+kontrollen mäter nu mot samma funktion som sökningen använder.
+
+Buggen fanns alltså i kod jag skrivit några timmar tidigare, och föll ut på
+tredje testfallet i en fil jag skrev för att testa något annat.
+
+**Mätning efter:** 51 enhetstester, 11 produktionskontroller. Peges-förvärvet
+hittas fortfarande, och gränsdragningen mellan `high` och `low` är oförändrad
+efter regexändringen — 15 träffar, samma fördelning som i morse.
+
+**Att veta:** jag lade till fem saknade variabler i `.env.example`, men
+`.gitignore` ignorerar `.env*` så filen finns bara på din disk, inte i repot.
+Ett `!.env.example` hade löst det, men jag ändrar inte den regeln på egen hand —
+en hemlighet som läcker till ett publikt repo är svår att ångra. Variablerna är
+dokumenterade i README i stället.
+
+**Föreslaget, inte byggt:** `ScraperService` och `SCRAPINGBEE_API_KEY` är död
+kod. Skrapningen gav noll träffar i mätningen 2026-08-06 och ingår inte i någon
+körning — den ligger kvar bakom `?source=scrape` i debug-endpointen. Att ta bort
+den är städning, inte en punkt i arbetslistan, så jag lämnar den åt dig.
+
+**Trasigt när jag slutade:** ingenting.
+
+---
+
 ## 2026-08-07 10:50
 
 **Byggt:** `9d1e9d4` — portföljtak per användare (§9.10). Uträknat ur
