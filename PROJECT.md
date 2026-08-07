@@ -1,4 +1,4 @@
-# Omvärldsbevakare — målbeskrivning
+# Företagskollen — målbeskrivning
 
 Detta dokument är den gemensamma kartan för projektet. Det beskriver vad vi
 bygger, hur vi vet att vi lyckats, och vad som fortfarande är olöst. Uppdatera
@@ -47,8 +47,8 @@ Status 2026-08-07:
 | Flerhyresgästmodell | **Granskad, ingen läcka.** Samtliga Prisma-frågor utanför `generated/` är scopade på `userId`, direkt eller via `company: { userId }` |
 | Kostnadstak per användare | **Byggt.** Portföljtak härlett ur körningens kapacitet, se avsnitt 6 |
 | Missbruksskydd | **Byggt.** Tak för inloggningsmejl, se nedan |
-| GDPR-hantering | **Delvis.** Radering och export byggda på `/dashboard/konto`. Personuppgiftspolicy återstår |
-| Verifierad mejldomän | **Blockerad.** Kräver DNS-åtkomst |
+| GDPR-hantering | **Byggt.** Radering, export och integritetspolicy |
+| Verifierad mejldomän | **Väntar på DNS.** `foretagskollen.se` köpt 2026-08-07, se `DOMAN-CHECKLISTA.md` |
 
 **Öppen registrering kan byggas färdig utan mejldomänen, men inte släppas utan
 den.** Nya användare loggar in med magisk länk. Utan verifierad domän hamnar
@@ -73,8 +73,30 @@ med allt innehåll (artikel 17). Raderingen förlitar sig på kaskaderna i schem
 i stället för en handskriven raderingsordning, eftersom en sådan ordning glöms
 bort när en tabell läggs till — och kvarlämnad persondata är då en tyst bugg.
 
-**Kvar för GDPR:** personuppgiftspolicy. Den är text, inte kod, men den ska
-finnas innan någon annan än du skapar konto.
+**Integritetspolicyn** ligger på `/integritetspolicy` och är länkad från
+inloggningssidan, där samtycket i praktiken ges. Den beskriver vad tjänsten
+faktiskt gör — ändras behandlingen ska sidan ändras i samma commit.
+
+### Mejlleveransen
+
+Tjänsten heter **Företagskollen** sedan 2026-08-07 och domänen är
+`foretagskollen.se`.
+
+Utskicken går genom `lib/email/transport.ts`, som väljer **SMTP när
+`SMTP_HOST` är satt och Resend annars**. Leverantören är därmed konfiguration,
+inte ett beroende i koden. Skälet till bytet var konkret: Resends gratisnivå
+tillåter en verifierad domän, och den platsen är upptagen av ett annat projekt
+som ska ligga kvar.
+
+En **halv** SMTP-konfiguration behandlas som ingen alls och faller tillbaka på
+Resend. Det är det farliga fallet — en halv konfiguration ser färdig ut och
+fallerar först vid utskick, alltså kl 07 när ingen tittar.
+
+`/api/debug/email-test` skickar ett riktigt mejl på begäran, och `?dry=1` visar
+vilken väg som är vald utan att skicka något. Den finns därför att mejlvägen
+annars bara går att prova när det råkar finnas en ny artikel.
+
+Stegen som återstår är Oskars och står i `DOMAN-CHECKLISTA.md`.
 
 **Fas 3 — betalning.** Utanför nuvarande planering.
 
@@ -501,8 +523,9 @@ kontoägaren skapar konto.
     och globalt, se avsnitt 3
 16. ~~GDPR: radering och export av egen data~~ — **klart 2026-08-07.**
     `/dashboard/konto`
-17. **Personuppgiftspolicy.** Sista GDPR-kravet före öppen registrering. Text,
-    inte kod
-18. **Öppna registreringen.** Idag finns ingen spärr i koden mot att nya konton
-    skapas — Auth.js skapar användaren vid första magiska länken. Innan det får
-    ske skarpt måste punkt 8 och 17 vara lösta
+17. ~~Personuppgiftspolicy~~ — **klart 2026-08-07.** `/integritetspolicy`
+18. **Öppna registreringen.** Ingen spärr finns i koden — Auth.js skapar
+    användaren vid första magiska länken. Orört med flit tills mejlen kommer
+    fram; en öppen registrering där ingen kan logga in är värre än en stängd
+19. ~~Byt utskicksväg så att leverantören går att välja~~ — **klart
+    2026-08-07.** SMTP eller Resend, styrt av miljön

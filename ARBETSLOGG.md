@@ -3,6 +3,52 @@
 Vad de automatiska körningarna gjort, senast överst. Kort med flit — det här är
 överblicken, inte dokumentationen. Den ligger i `PROJECT.md`.
 
+## 2026-08-07 15:55 — Företagskollen, och mejlvägen bytt
+
+Domänen `foretagskollen.se` är köpt. **Allt som gick att göra utan att DNS är
+klart är gjort** — det som återstår är fem minuter hos Brevo, en kvart hos
+Strato och fem miljövariabler i Vercel. Stegen står i `DOMAN-CHECKLISTA.md`.
+
+**Byggt:**
+
+- `a31693f` — avsändaren samlad på ett ställe, styrd av `EMAIL_FROM`. Låg
+  hårdkodad på två, vilket betyder att domänbytet kan göras halvt.
+- `25f21c3` — **SMTP som utskicksväg.** Resends gratisnivå tillåter en domän och
+  den platsen är upptagen av `jjbyggboden.se` som ska ligga kvar. Leverantören är
+  nu en miljövariabel. Halv SMTP-konfiguration faller tillbaka på Resend — en
+  halv konfiguration ser färdig ut och fallerar först kl 07.
+- `d8458fb` — **integritetspolicy** (§9.17 klar) och namnbytet till
+  Företagskollen genomgående.
+- `/api/debug/email-test` — skickar ett riktigt mejl på begäran.
+
+**Varför testendpointen behövdes:** efter SMTP-omskrivningen gav två
+cron-körningar `emailsSent: 0`. Helt korrekt, det fanns inga nya artiklar — men
+det betyder att jag inte hade bevisat att utskicket fungerade. Skickade skarpt
+i stället: levererat, HTML och textdel intakta.
+
+**Om Resend:** du hade redan `jjbyggboden.se` verifierad där. Gratisnivån
+tillåter en domän, så `mail.foretagskollen.se` gick inte att lägga till. Jag rörde
+inte den befintliga.
+
+**Gissningar:**
+
+- *Brevo framför de andra gratisalternativen.* 300 mejl/dygn mot SMTP2GO:s
+  1 000/månad och MailerSend:s 500. Franskt bolag, så data stannar i EU, vilket
+  integritetspolicyn nu bygger på. Byter du åsikt är det fyra variabler.
+- *Subdomän `mail.foretagskollen.se` för utgående mejl.* Går avsändarryktet
+  sönder träffar det inte huvuddomänen.
+- *DMARC `p=none` till att börja med.* Rapporterar men blockerar inget. Skärp när
+  du sett några veckors rapporter.
+
+**Kvar, och det är ditt:** Brevo-konto, DNS hos Strato, miljövariabler. Sedan
+faller de sista två bitarna — §9.18 öppna registreringen, och §4.2 sju dygn i
+rad, som inte kan börja räknas förrän mejlen kommer fram.
+
+**Trasigt när jag slutade:** ingenting. 70 tester gröna, morgonjobbet friskt,
+testmejl levererat.
+
+---
+
 ## 2026-08-07 15:25 — fas 2 påbörjad
 
 Du sa: skit i domänen tills vidare, fortsätt med fas 2. **En invändning först,
