@@ -3,6 +3,37 @@
 Vad de automatiska körningarna gjort, senast överst. Kort med flit — det här är
 överblicken, inte dokumentationen. Den ligger i `PROJECT.md`.
 
+## 2026-08-08 00:55 — kapacitetstaket räknade fel
+
+Du frågade vad som återstår före en bred lansering. Svaret står nu i
+PROJECT.md §9 som en tabell, och när jag räknade efter hittade jag ett fel som
+hörde hemma överst på den listan.
+
+**Byggt:** `d9b7fea` — portföljtaket räknades per konto men gäller hela
+körningen. 110 är vad *en* morgonkörning hinner med totalt; det jämfördes mot
+användarens egna bolag. Med en användare stämde det, vilket är varför det aldrig
+syntes. Med tio användare hade var och en legat under sitt "tak" medan körningen
+bara hann med hälften — och det hade visat sig som att bevakningarna tyst blev
+ett dygn gamla, inte som ett fel.
+
+**Gissning:** att låta tjänsten kunna bli *full* vid 110 bolag totalt.
+Alternativet var att behålla den generösa per-konto-räkningen och acceptera att
+uppdateringstakten sjunker i smyg. Jag valde den ärliga gränsen. Reverta
+`d9b7fea` om du hellre vill ha det andra.
+
+**Kvar att veta:** morgonmejlet skickades skarpt under verifieringen
+(`14e00a82`) — det är det första med avregistreringslänk och
+`List-Unsubscribe`. Värt att öppna och se att Gmail visar sin egen knapp.
+Artikeln som utlöste det var *Marcus Ericsson skriver nytt kontrakt*, alltså
+racerföraren och inte bolaget. Den nådde den säkra delen. Efternamn som är
+bolagsnamn är ett svårt fall och jag byggde ingen gissning kring det — men det
+hör till bilden av vad "täckning framför precision" kostar.
+
+**Trasigt när jag slutade:** ingenting. 97 tester gröna. Morgonjobbet kört två
+gånger i rad: andra körningen `created: 0`, `skipped: 124`.
+
+---
+
 ## 2026-08-08 00:30 — vägen ut ur mejlet, och namnet
 
 **Byggt:**
