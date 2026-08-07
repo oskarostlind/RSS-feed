@@ -71,6 +71,14 @@ export function ImportWizard() {
           {commit.created} bolag lades till
           {commit.skipped > 0 ? `, ${commit.skipped} hoppades över` : ""}.
         </p>
+
+        {/* Importen lyckades, men något föll bort. Ett besked som inte är ett
+            felmeddelande, eftersom inget gick fel. */}
+        {commit.error ? (
+          <p className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200">
+            {commit.error}
+          </p>
+        ) : null}
         <Link
           href="/dashboard/companies"
           className="inline-block rounded-lg bg-zinc-900 px-6 py-2.5 text-sm font-medium text-white transition-colors hover:bg-zinc-700 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300"

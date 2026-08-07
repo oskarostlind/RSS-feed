@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getRequiredUserId } from "@/lib/auth";
+import { getPortfolioCapacity } from "@/lib/companies/portfolioLimit";
 import { companyBelongsToUser } from "@/lib/companies/queries";
 import { prisma } from "@/lib/prisma";
 import { executeDiscoveryJob } from "@/lib/search/executeDiscoveryJob";
@@ -37,6 +38,14 @@ export async function addCompany(formData: FormData): Promise<void> {
 
   if (existing) {
     redirect(`${COMPANIES_PATH}?error=duplicate`);
+  }
+
+  // Taket kontrolleras här och inte bara i importen: en användare som lägger
+  // till ett bolag i taget når samma gräns, bara långsammare.
+  const capacity = await getPortfolioCapacity(userId);
+
+  if (capacity.remaining <= 0) {
+    redirect(`${COMPANIES_PATH}?error=limit`);
   }
 
   try {

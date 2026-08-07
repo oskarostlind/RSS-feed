@@ -3,6 +3,10 @@
 import { revalidatePath } from "next/cache";
 import { getRequiredUserId } from "@/lib/auth";
 import {
+  describePortfolioLimit,
+  getPortfolioCapacity,
+} from "@/lib/companies/portfolioLimit";
+import {
   buildImportPreview,
   guessNameColumn,
   type ImportPreview,
@@ -261,6 +265,16 @@ export async function commitImport(
     };
   }
 
+  const capacity = await getPortfolioCapacity(userId);
+
+  if (capacity.remaining <= 0) {
+    return {
+      ...EMPTY_COMMIT_STATE,
+      status: "error",
+      error: describePortfolioLimit(capacity),
+    };
+  }
+
   const existingKeys = new Set(
     (await existingCompanyNames(userId)).map(companyMatchKey),
   );
@@ -292,23 +306,37 @@ export async function commitImport(
     };
   }
 
+  // Delimport i stället för avslag när filen är större än vad som ryms.
+  // Att avvisa hela uppladdningen för att de sista tjugo raderna inte får plats
+  // vore att straffa användaren för en gräns hen inte känner till — och de
+  // rader som föll bort syns i `skipped`.
+  const accepted = toCreate.slice(0, capacity.remaining);
+
   try {
     // `skipDuplicates` mot `@@unique([userId, name])` fångar det som
     // normaliseringen inte gör: exakt samma namn tillagt i en annan flik
     // mellan förhandsgranskningen och sparandet.
     const result = await prisma.company.createMany({
-      data: toCreate.map((name) => ({ name, userId })),
+      data: accepted.map((name) => ({ name, userId })),
       skipDuplicates: true,
     });
 
     revalidatePath(COMPANIES_PATH);
     revalidatePath("/dashboard");
 
+    const droppedForLimit = toCreate.length - accepted.length;
+
     return {
       status: "done",
       created: result.count,
       skipped: names.length - result.count,
-      error: null,
+      // Inte `status: "error"` — importen lyckades, men användaren måste få
+      // veta att en del av filen inte kom med. Utan beskedet ser det ut som
+      // att raderna försvann.
+      error:
+        droppedForLimit > 0
+          ? `${droppedForLimit} bolag fick inte plats. ${describePortfolioLimit(capacity)}`
+          : null,
     };
   } catch (error) {
     console.error("Failed to import companies:", error);

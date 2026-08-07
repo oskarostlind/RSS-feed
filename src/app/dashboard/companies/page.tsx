@@ -13,6 +13,8 @@ function resolveErrorMessage(error: string | undefined): string | null {
       return "Ange ett företagsnamn.";
     case "duplicate":
       return "Det företaget finns redan i portföljen.";
+    case "limit":
+      return "Portföljen är full. Ta bort några bevakningar först.";
     case "failed":
       return "Kunde inte spara företaget. Försök igen.";
     default:

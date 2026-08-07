@@ -80,6 +80,48 @@ export function startDeadline(budgetMs: number = resolveBudgetMs()): Deadline {
   };
 }
 
+/**
+ * Mätt 2026-08-07 i produktion: två bolag på ~1,7 sekunder med concurrency 5.
+ * Två sekunder per grupp är därför en försiktig uppskattning, inte en gissning.
+ */
+const MS_PER_GROUP = 2_000;
+
+/**
+ * Ett absolut tak oavsett hur högt parallelliteten skruvas. Vid någon punkt är
+ * det inte tidsbudgeten som brister utan källorna som stryper, och då hjälper
+ * ingen parallellisering.
+ */
+const HARD_CEILING = 1_000;
+
+/**
+ * Hur många bolag en morgonkörning rimligen hinner med.
+ *
+ * Ligger här och inte bland bolagsfunktionerna, eftersom det är en egenskap hos
+ * körningen och inte hos portföljen: höjs `DISCOVERY_CONCURRENCY` följer taket
+ * med automatiskt. Det är meningen — den som vill bevaka fler bolag ska först
+ * göra körningen snabbare.
+ *
+ * Med standardvärdena blir taket 110 bolag. Målbildens avsnitt 1 talar om "över
+ * 100 bolag", så standardinställningen ligger precis på gränsen; en riktig
+ * portfölj kräver att parallelliteten höjs.
+ */
+export function resolveDiscoveryCapacity(
+  explicitRaw: string | undefined = process.env.MAX_COMPANIES_PER_USER,
+): number {
+  const explicit = Number(explicitRaw);
+
+  if (Number.isFinite(explicit) && explicit > 0) {
+    return Math.min(Math.floor(explicit), HARD_CEILING);
+  }
+
+  const groupsPerRun = Math.floor(resolveBudgetMs() / MS_PER_GROUP);
+
+  return Math.min(
+    Math.max(groupsPerRun * resolveConcurrency(), 50),
+    HARD_CEILING,
+  );
+}
+
 export function chunk<T>(items: readonly T[], size: number): T[][] {
   const groups: T[][] = [];
 
