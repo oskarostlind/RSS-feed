@@ -38,6 +38,23 @@ const SOURCES: readonly SourceName[] = [
  */
 const MAX_COMPANIES = 10;
 
+/**
+ * Paus mellan bolag.
+ *
+ * Sekventiella anrop räckte inte: mätningen 2026-08-07 14:24 gav 429 på tre av
+ * fem bolag trots att bolagen kördes ett i taget. GNews gratisnivå begränsar
+ * alltså på anrop per sekund, inte bara på samtidighet.
+ *
+ * Det spelar roll för mer än mätningen. En källa som svarar 429 ser i statistik
+ * likadan ut som en källa som svarar noll, och en mätning där källan aldrig kom
+ * till tals kan inte användas för att döma ut den.
+ */
+const PACING_MS = 1_500;
+
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 interface SourceMeasurement {
   source: SourceName;
   ok: boolean;
@@ -262,9 +279,13 @@ export async function GET(request: Request): Promise<NextResponse> {
   const windowDays = resolveWindowDays();
   const measurements: CompanyMeasurement[] = [];
 
-  // Bolagen körs ett i taget med flit. Parallella bolag betyder parallella
-  // GNews-anrop, och det var precis så gratisnivån gav 429 den 2026-08-07.
-  for (const company of companies) {
+  // Bolagen körs ett i taget, med paus emellan. Se PACING_MS — sekventiellt
+  // ensamt räckte inte för att hålla sig under GNews strypning.
+  for (const [index, company] of companies.entries()) {
+    if (index > 0) {
+      await delay(PACING_MS);
+    }
+
     const runs = await Promise.all(
       SOURCES.map((source) => runSource(source, company)),
     );
