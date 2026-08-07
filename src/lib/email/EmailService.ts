@@ -1,5 +1,9 @@
 import { Resend } from "resend";
 import {
+  SourceAlertEmail,
+  type SourceAlertRow,
+} from "@/emails/SourceAlertEmail";
+import {
   MorningSummaryEmail,
   type MorningSummaryJobAdItem,
   type MorningSummaryNewsItem,
@@ -11,7 +15,7 @@ import {
 
 const DEFAULT_FROM_EMAIL = "onboarding@resend.dev";
 
-export type { MorningSummaryJobAdItem, MorningSummaryNewsItem };
+export type { MorningSummaryJobAdItem, MorningSummaryNewsItem, SourceAlertRow };
 
 export interface SendMorningSummaryResult {
   id: string;
@@ -131,6 +135,58 @@ export class EmailService {
       const causeMessage = formatErrorCause(error) ?? formatErrorMessage(error);
       throw new EmailServiceError(
         `Failed to send morning summary email: ${causeMessage}`,
+        { cause: error },
+      );
+    }
+  }
+
+  /**
+   * Larm om att en källa inte levererade.
+   *
+   * Går till `ADMIN_EMAIL` och inte till användarna. Det är ett driftlarm, inte
+   * en produktegenskap — en AM ska inte behöva veta vad google-rss är, bara
+   * kunna lita på att mejlet kommer. Den dagen tjänsten har riktiga kunder ska
+   * det här mejlet gå till den som kan laga felet, inte till dem som drabbas.
+   */
+  async sendSourceAlert(
+    rows: SourceAlertRow[],
+  ): Promise<SendMorningSummaryResult> {
+    if (rows.length === 0) {
+      throw new EmailServiceError("sendSourceAlert requires at least one row");
+    }
+
+    const names = rows.map((row) => row.source).join(", ");
+
+    try {
+      const response = await this.resend.emails.send({
+        from: this.fromEmail,
+        to: this.adminEmail,
+        subject: `Omvärldsbevakare: ${names} levererade inte`,
+        react: SourceAlertEmail({ rows, ranAt: new Date() }),
+      });
+
+      if (response.error) {
+        throw new EmailServiceError(
+          `Resend request failed: ${response.error.message}`,
+          { cause: response.error },
+        );
+      }
+
+      if (!response.data?.id) {
+        throw new EmailServiceError(
+          "Resend request succeeded but returned no email id",
+        );
+      }
+
+      return { id: response.data.id };
+    } catch (error) {
+      if (error instanceof EmailServiceError) {
+        throw error;
+      }
+
+      const causeMessage = formatErrorCause(error) ?? formatErrorMessage(error);
+      throw new EmailServiceError(
+        `Failed to send source alert email: ${causeMessage}`,
         { cause: error },
       );
     }

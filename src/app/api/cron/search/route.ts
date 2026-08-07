@@ -30,6 +30,39 @@ interface EmailDeliveryReport {
  * Därför `console.error` och inte `console.log` — den ska sticka ut i Vercels
  * loggöversikt utan att någon letar efter den.
  */
+/**
+ * Mejlar larmet, om det finns något att larma om.
+ *
+ * Ett larm som bara syns i Vercels loggar är inget larm — ingen läser dem
+ * förrän någon redan undrat varför mejlet uteblev, och då har skadan skett.
+ *
+ * Fallerar utskicket sänker det inte körningen: artiklarna är sparade och
+ * morgonmejlen skickade. Loggen är kvar som andra utväg.
+ */
+async function notifySourceHealth(health: SourceHealthReport): Promise<string | null> {
+  const rows = health.sources
+    .filter(
+      (source) => source.verdict === "silent" || source.verdict === "failing",
+    )
+    .map((source) => ({
+      source: source.source,
+      verdict: source.verdict,
+      note: source.note,
+    }));
+
+  if (rows.length === 0) {
+    return null;
+  }
+
+  try {
+    const result = await EmailService.fromEnv().sendSourceAlert(rows);
+    return result.id;
+  } catch (error) {
+    console.error("Failed to send source alert:", error);
+    return null;
+  }
+}
+
 function logSourceHealth(health: SourceHealthReport): void {
   for (const source of health.sources) {
     if (source.verdict === "silent" || source.verdict === "failing") {
@@ -160,9 +193,14 @@ export async function GET(request: Request): Promise<NextResponse> {
       );
     }
 
+    // Efter morgonmejlen, inte före: ett driftlarm får aldrig hindra att
+    // användarna får sina nyheter.
+    const alertEmailId = await notifySourceHealth(result.sourceHealth);
+
     return NextResponse.json({
       ...result,
       emailsSent: deliveries.filter((delivery) => delivery.sent).length,
+      alertEmailId,
       deliveries,
     });
   } catch (error) {
