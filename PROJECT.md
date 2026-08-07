@@ -323,6 +323,26 @@ bolag", så standardinställningen ligger precis på gränsen för den produkt v
 säger oss bygga. En riktig portfölj kräver antingen högre parallellitet eller
 fan-out.
 
+**Taket räknades per användare men gäller alla — rättat 2026-08-08.** Talet 110
+är vad *hela* morgonkörningen hinner med, men jämfördes mot användarens egna
+bolag. Med en användare stämde det, och det är därför felet aldrig syntes. Med
+tio användare på tjugo bolag hade var och en legat långt under sitt "tak" medan
+körningen ändå bara hunnit med hälften av dem.
+
+Det allvarliga är hur felet hade visat sig: inte som ett fel, utan som att
+`lastCheckedAt` roterar och varje bevakning tyst blir en dag gammal. En tjänst
+vars hela löfte är att man får veta i tid hade alltså börjat leverera i
+efterhand, utan att något larm gått. Det var den enskilt farligaste följden av
+en bred lansering.
+
+Nu räknas allas bolag mot samma budget, och beskedet skiljer på om det är du
+själv eller andra konton som fyllt den — att be någon ta bort sina egna
+bevakningar när det är andra som tagit plats är ett råd som inte hjälper.
+**Konsekvensen är att tjänsten nu kan bli "full" på riktigt vid 110 bolag
+totalt.** Det är avsiktligt: en ärlig gräns är bättre än en tyst
+kvalitetsförsämring. Men det betyder också att kapaciteten måste höjas *innan*
+en bred lansering, inte efter.
+
 **Schemat återställs inte av en deploy.** Fram till 2026-08-07 fanns ingen
 `prisma/migrations`-katalog alls — tabellerna hade bara någonsin skapats med
 `prisma db push` från en laptop. Och byggkommandot är `prisma generate && next
@@ -494,6 +514,32 @@ kontoägaren skapar konto.
 - Ingen bevakning av privatpersoner
 
 ## 9. Nästa steg
+
+### Vad som faktiskt står mellan oss och en bred lansering
+
+Frågan ställdes 2026-08-08. Svaret är kortare än arbetslistan nedan, eftersom
+det mesta på den kan göras efter lansering. Detta kan det inte.
+
+| # | Hinder | Vem löser | Kan lanseras utan? |
+|---|---|---|---|
+| 1 | Verifierad mejldomän (§9.8) | Oskar, pågår hos Strato | **Nej.** Ingen ny användare kommer in alls |
+| 2 | Kriterium 2 — sju dygn i rad (§4) | Tid, efter 1 | **Nej.** Fas 1 är inte belagd förrän det är mätt |
+| 3 | Kapaciteten räcker för fler än ett konto (§6) | Kod eller Vercel Pro | **Nej.** 110 bolag *totalt*, inte per konto |
+| 4 | Beslut om registreringsläge (§9.18) | Oskar | Nej, men det är ett beslut på fem sekunder |
+| 5 | En källa som inte är Google eller Bing (§7) | Kod, blockerad av Bolagsverket | Ja, med risk |
+| 6 | Upphovsrätt, DSM artikel 15 (§7) | Jurist | Ja om gratis, **nej om betalt** |
+| 7 | Byta mejladress i gränssnittet (§9.20) | Kod | Ja, men det blir supportärenden |
+
+**Punkt 3 är den som lättast förbises**, eftersom den inte syns förrän det finns
+mer än en användare — och då syns den inte som ett fel utan som att bevakningen
+blir en dag gammal. Se avsnitt 6.
+
+**Punkt 2 kan inte skyndas.** Sju dygn är sju dygn, och räkningen börjar om
+varje gång databasen byts. Den börjar först när punkt 1 är klar, så den sätter
+golvet för när en lansering kan ske: **en vecka efter att mejldomänen
+verifierats**, inte tidigare.
+
+
 
 1. ~~Tidsfönster i cron-jobbet så att arkivartiklar inte mejlas~~ — **klart
    2026-08-07.** Sju dagar, styrbart via `NEWS_WINDOW_DAYS`. Fönstret gäller

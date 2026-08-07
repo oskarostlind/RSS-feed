@@ -1,3 +1,7 @@
+import {
+  describePortfolioLimit,
+  type PortfolioCapacity,
+} from "@/lib/companies/portfolioCapacity";
 import { prisma } from "@/lib/prisma";
 import { resolveDiscoveryCapacity } from "@/lib/search/discoveryBudget";
 
@@ -13,32 +17,40 @@ import { resolveDiscoveryCapacity } from "@/lib/search/discoveryBudget";
  *
  * Själva talet räknas ut i `discoveryBudget`, eftersom det är en egenskap hos
  * körningen och inte hos portföljen.
+ *
+ * **Kapaciteten är delad, inte en kvot per konto.** Det här var fel fram till
+ * 2026-08-08: taket räknades per användare, men talet det jämfördes mot är vad
+ * *hela* morgonkörningen hinner med. Med en användare stämde det. Med tio
+ * användare på tio bolag var var och en långt under sitt "tak" medan körningen
+ * ändå bara hann med en del av dem — och konsekvensen syns inte som ett fel
+ * utan som att bevakningen blir en dag gammal. Precis den sortens tystnad
+ * tjänsten finns för att undvika.
+ *
+ * Därför räknas nu allas bolag mot samma budget. Det är hårt mot den som
+ * registrerar sig sist, men det är sant, och ett tydligt "det finns inte plats"
+ * är bättre än en bevakning som i smyg blir varannandags. Vägen ur det är
+ * `DISCOVERY_CONCURRENCY`, eller fan-out — se PROJECT.md avsnitt 6.
  */
 
-export interface PortfolioCapacity {
-  limit: number;
-  used: number;
-  remaining: number;
-}
+export type { PortfolioCapacity };
+export { describePortfolioLimit };
 
 export async function getPortfolioCapacity(
   userId: string,
 ): Promise<PortfolioCapacity> {
   const limit = resolveDiscoveryCapacity();
-  const used = await prisma.company.count({ where: { userId } });
 
-  return { limit, used, remaining: Math.max(limit - used, 0) };
-}
+  // Två räkningar och inte en gruppering: `count` går på index och svarar på
+  // konstant tid oavsett hur många användare som finns.
+  const [used, total] = await Promise.all([
+    prisma.company.count({ where: { userId } }),
+    prisma.company.count(),
+  ]);
 
-/**
- * Formulerad som en mening en användare kan agera på, inte som ett felnummer.
- * Den som slår i taket har oftast just laddat upp en fil och behöver veta vad
- * som gick fel och vad som går att göra åt det.
- */
-export function describePortfolioLimit(capacity: PortfolioCapacity): string {
-  return (
-    `Portföljen rymmer ${capacity.limit} bolag och du bevakar redan ` +
-    `${capacity.used}. Ta bort några bevakningar, eller höj ` +
-    `DISCOVERY_CONCURRENCY så att morgonkörningen hinner med fler.`
-  );
+  return {
+    limit,
+    used,
+    usedByOthers: Math.max(total - used, 0),
+    remaining: Math.max(limit - total, 0),
+  };
 }
