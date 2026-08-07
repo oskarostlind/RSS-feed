@@ -2,8 +2,8 @@ import { PrismaAdapter } from "@auth/prisma-adapter";
 import NextAuth from "next-auth";
 import Email from "next-auth/providers/email";
 import { redirect } from "next/navigation";
-import { Resend } from "resend";
 import { resolveFromAddress } from "@/lib/email/sender";
+import { sendEmail } from "@/lib/email/transport";
 import { prisma } from "@/lib/prisma";
 
 /**
@@ -16,16 +16,6 @@ import { prisma } from "@/lib/prisma";
  */
 function magicLinkFrom(): string {
   return resolveFromAddress();
-}
-
-function getResendApiKey(): string {
-  const apiKey = process.env.RESEND_API_KEY;
-
-  if (!apiKey) {
-    throw new Error("Missing environment variable: RESEND_API_KEY");
-  }
-
-  return apiKey;
 }
 
 function buildMagicLinkEmailText(url: string): string {
@@ -131,24 +121,17 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         },
       },
       from: magicLinkFrom(),
+      // Egen utskicksväg i stället för Auth.js inbyggda nodemailer-anrop.
+      // Den inbyggda skickar en engelsk standardmall utan textdel, och det är
+      // just avsaknaden av textdel som fick Gmail att kasta mejlen 2026-08-07.
       sendVerificationRequest: async ({ identifier, url }) => {
-        const resend = new Resend(getResendApiKey());
-        const response = await resend.emails.send({
+        await sendEmail({
           from: magicLinkFrom(),
           to: identifier,
-          subject: "Din inloggningslänk till Omvärldsbevakare",
+          subject: "Din inloggningslänk till Företagskollen",
           html: buildMagicLinkEmailHtml(url),
-          // Ett mejl med enbart HTML-del ser ut som massutskick för
-          // spamfiltren. En text-del kostar tre rader och tar bort en av de
-          // vanligaste anledningarna till att posten sorteras undan.
           text: buildMagicLinkEmailText(url),
         });
-
-        if (response.error) {
-          throw new Error(
-            `Failed to send magic link email: ${response.error.message}`,
-          );
-        }
       },
     }),
   ],

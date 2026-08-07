@@ -1,4 +1,3 @@
-import { Resend } from "resend";
 import {
   SourceAlertEmail,
   type SourceAlertRow,
@@ -12,7 +11,9 @@ import {
   formatErrorCause,
   formatErrorMessage,
 } from "@/lib/utils/formatError";
+import { render } from "@react-email/render";
 import { resolveFromAddress } from "@/lib/email/sender";
+import { sendEmail } from "@/lib/email/transport";
 
 
 export type { MorningSummaryJobAdItem, MorningSummaryNewsItem, SourceAlertRow };
@@ -89,35 +90,24 @@ function buildMorningSummaryText(
 }
 
 export class EmailService {
-  private readonly resend: Resend;
   private readonly adminEmail: string;
   private readonly fromEmail: string;
 
-  constructor(options: {
-    apiKey: string;
-    adminEmail: string;
-    fromEmail?: string;
-  }) {
-    this.resend = new Resend(options.apiKey);
+  constructor(options: { adminEmail: string; fromEmail?: string }) {
     this.adminEmail = options.adminEmail;
     this.fromEmail = options.fromEmail ?? resolveFromAddress();
   }
 
   static fromEnv(): EmailService {
-    const apiKey = process.env.RESEND_API_KEY;
     const adminEmail = process.env.ADMIN_EMAIL;
-
-    if (!apiKey) {
-      throw new EmailServiceError(
-        "Missing environment variable: RESEND_API_KEY",
-      );
-    }
 
     if (!adminEmail) {
       throw new EmailServiceError("Missing environment variable: ADMIN_EMAIL");
     }
 
-    return new EmailService({ apiKey, adminEmail });
+    // Nycklarna för själva utskicket kontrolleras i `transport.ts`, som är den
+    // enda som vet vilken väg som gäller.
+    return new EmailService({ adminEmail });
   }
 
   async sendMorningSummary(
@@ -143,30 +133,23 @@ export class EmailService {
     const subject = buildMorningSubject(newsItems.length, jobAds.length);
 
     try {
-      const response = await this.resend.emails.send({
+      // Renderas här i stället för att skickas som React till Resend: SMTP
+      // tar bara färdig HTML, och båda vägarna ska få exakt samma mejl.
+      const html = await render(
+        MorningSummaryEmail({ newsItems, possibleItems, jobAds }),
+      );
+
+      const sent = await sendEmail({
         from: this.fromEmail,
         to: recipient,
         subject,
-        react: MorningSummaryEmail({ newsItems, possibleItems, jobAds }),
+        html,
         // Textalternativ, av samma skäl som för inloggningsmejlet: ett
         // HTML-bara mejl ser ut som massutskick för spamfiltren.
         text: buildMorningSummaryText(newsItems, possibleItems, jobAds),
       });
 
-      if (response.error) {
-        throw new EmailServiceError(
-          `Resend request failed: ${response.error.message}`,
-          { cause: response.error },
-        );
-      }
-
-      if (!response.data?.id) {
-        throw new EmailServiceError(
-          "Resend request succeeded but returned no email id",
-        );
-      }
-
-      return { id: response.data.id };
+      return { id: sent.id };
     } catch (error) {
       if (error instanceof EmailServiceError) {
         throw error;
@@ -198,32 +181,21 @@ export class EmailService {
     const names = rows.map((row) => row.source).join(", ");
 
     try {
-      const response = await this.resend.emails.send({
+      const html = await render(SourceAlertEmail({ rows, ranAt: new Date() }));
+
+      const sent = await sendEmail({
         from: this.fromEmail,
         to: this.adminEmail,
-        subject: `Omvärldsbevakare: ${names} levererade inte`,
-        react: SourceAlertEmail({ rows, ranAt: new Date() }),
+        subject: `Företagskollen: ${names} levererade inte`,
+        html,
         text: [
-          "Källvarning från Omvärldsbevakare",
+          "Källvarning från Företagskollen",
           "",
           ...rows.map((row) => `${row.source} [${row.verdict}]: ${row.note}`),
         ].join("\n"),
       });
 
-      if (response.error) {
-        throw new EmailServiceError(
-          `Resend request failed: ${response.error.message}`,
-          { cause: response.error },
-        );
-      }
-
-      if (!response.data?.id) {
-        throw new EmailServiceError(
-          "Resend request succeeded but returned no email id",
-        );
-      }
-
-      return { id: response.data.id };
+      return { id: sent.id };
     } catch (error) {
       if (error instanceof EmailServiceError) {
         throw error;
