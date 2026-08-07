@@ -2,6 +2,10 @@ import { PrismaAdapter } from "@auth/prisma-adapter";
 import NextAuth from "next-auth";
 import Email from "next-auth/providers/email";
 import { redirect } from "next/navigation";
+import {
+  isSignInAllowed,
+  resolveSignupMode,
+} from "@/lib/auth/signupPolicy";
 import { resolveFromAddress } from "@/lib/email/sender";
 import { sendEmail } from "@/lib/email/transport";
 import { prisma } from "@/lib/prisma";
@@ -142,6 +146,45 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     signIn: "/login",
   },
   callbacks: {
+    /**
+     * Registreringsspärren.
+     *
+     * Ligger i `signIn` och inte i ett formulär eftersom magisk länk gör
+     * inloggning och registrering till samma handling — se `signupPolicy.ts`.
+     * Callbacken körs efter att länken verifierats, alltså efter att adressen
+     * bevisats tillhöra den som klickar.
+     *
+     * Ett fel i databasfrågan släpper igenom. Alternativet vore att låsa ute
+     * alla vid ett tillfälligt databasfel, och `open` är förvalet ändå.
+     */
+    async signIn({ user }) {
+      const email = user.email;
+
+      if (!email) {
+        return true;
+      }
+
+      if (resolveSignupMode() === "open") {
+        return true;
+      }
+
+      try {
+        const existing = await prisma.user.findUnique({
+          where: { email },
+          select: { id: true },
+        });
+
+        if (isSignInAllowed(email, existing !== null)) {
+          return true;
+        }
+
+        console.warn(`Registrering nekad för ${email} (läge: ${resolveSignupMode()}).`);
+        return "/login?nekad=1";
+      } catch (error) {
+        console.error("Kunde inte kontrollera registreringsspärren:", error);
+        return true;
+      }
+    },
     session({ session, user }) {
       session.user.id = user.id;
       return session;

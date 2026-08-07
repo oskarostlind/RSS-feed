@@ -4,7 +4,7 @@ Detta dokument är den gemensamma kartan för projektet. Det beskriver vad vi
 bygger, hur vi vet att vi lyckats, och vad som fortfarande är olöst. Uppdatera
 det när målbilden ändras — inte när koden ändras.
 
-Senast uppdaterad: 2026-08-07
+Senast uppdaterad: 2026-08-08
 
 ---
 
@@ -97,6 +97,28 @@ vilken väg som är vald utan att skicka något. Den finns därför att mejlväg
 annars bara går att prova när det råkar finnas en ny artikel.
 
 Stegen som återstår är Oskars och står i `DOMAN-CHECKLISTA.md`.
+
+**Avregistrering.** Morgonmejlet bär sedan 2026-08-08 en avregistreringslänk,
+och `List-Unsubscribe`/`List-Unsubscribe-Post` så att Gmail och Outlook visar
+sin egen knapp vid avsändarnamnet. Det är inte artighet utan leverans: utan väg
+ut är "skräppost" den enda knapp mottagaren har, och varje sådan markering drar
+ner avsändarryktet för *alla* användare. En tjänst som redan har leveransproblem
+tål det sämst.
+
+Länken bär sin egen behörighet — användar-id plus en HMAC över det, gjord med
+`AUTH_SECRET`. **Den kräver med flit ingen inloggning:** att först behöva en
+magisk länk som kanske hamnar i skräpposten vore att kräva att man löser
+tjänstens kända problem innan man får slippa den. Signaturen ger inte
+inloggning; det enda den öppnar är att stänga av mejlet, och det går att ångra
+på `/dashboard/konto`.
+
+Båda vägarna är POST — bekräftelsesidan `/avregistrera` och enklicks-API:t
+`/api/avregistrera`. Skälet är konkret: mejlklienter och säkerhetsskannrar
+förhämtar länkar, så en GET skulle stänga av mejlet för folk som aldrig
+klickat.
+
+Sökningen fortsätter för den som avregistrerat sig. Nyheterna ska fylla
+dashboarden som vanligt; det är utskicket som upphör, inte bevakningen.
 
 **Fas 3 — betalning.** Utanför nuvarande planering.
 
@@ -504,9 +526,11 @@ kontoägaren skapar konto.
    standard. Se avsnitt 7
 10. ~~Kostnadstak per **användare**, inte bara per import~~ — **klart
     2026-08-07.** Portföljtak härlett ur körningens kapacitet, se avsnitt 6
-11. **Spärrlista mot domäner som inte är nyhetskällor.** En kurssida från
-    investing.com nådde den säkra delen av morgonmejlet 2026-08-07, se
-    avsnitt 7. Liten åtgärd, direkt synlig i produkten
+11. ~~Spärrlista mot domäner som inte är nyhetskällor~~ — **klart
+    2026-08-07** i `8631975`, men punkten blev stående kvar här till
+    2026-08-08. Bolagsregister och sociala nätverk spärras på domän,
+    kurssidor på **sökväg** — se `relevance.ts` för varför skillnaden är
+    nödvändig
 12. **Bestäm vad som gäller för klockslaget vintertid.** Cron går på UTC, så
     `0 5 * * *` blir 06:00 svensk tid när sommartiden upphör. Antingen
     accepteras driften — och då bör kriterium 2 i avsnitt 4 skrivas om — eller
@@ -524,13 +548,18 @@ kontoägaren skapar konto.
 16. ~~GDPR: radering och export av egen data~~ — **klart 2026-08-07.**
     `/dashboard/konto`
 17. ~~Personuppgiftspolicy~~ — **klart 2026-08-07.** `/integritetspolicy`
-18. **Bestäm om registreringen ska begränsas.** Den är i praktiken redan öppen:
-    Auth.js skapar användaren vid första magiska länken och ingen spärr finns.
-    Det enda som hindrar en främling idag är att mejlet inte kommer fram. Frågan
-    är alltså inte om den ska öppnas utan om den ska stängas — inbjudningskod,
-    väntelista eller fritt fram
+18. **Bestäm om registreringen ska begränsas** — *spärren är byggd
+    2026-08-08, beslutet återstår.* `SIGNUP_MODE` styr: `open` (förval, alltså
+    dagens beteende), `invite` med `SIGNUP_ALLOWLIST`, eller `closed`.
+    Befintliga användare släpps alltid in, även i `closed`. Kontrollen sitter i
+    Auth.js `signIn`-callback och inte på ett formulär, eftersom magisk länk
+    gör inloggning och registrering till samma handling.
+
+    Det här behöver bestämmas **innan** mejldomänen verifieras, inte efter.
+    Idag hindras en främling bara av att mejlet inte kommer fram; den dagen
+    punkt 8 är löst faller den spärren över en natt
 20. **Gränssnittsluckor som inte blockerar.** Ingen väg att byta mejladress,
-    ingen avregistreringslänk i morgonmejlet, inga laddningstillstånd, mobilvyn
-    obeprövad
+    inga laddningstillstånd, mobilvyn obeprövad. *Avregistreringslänken är
+    klar 2026-08-08* — se avsnitt 6
 19. ~~Byt utskicksväg så att leverantören går att välja~~ — **klart
     2026-08-07.** SMTP eller Resend, styrt av miljön

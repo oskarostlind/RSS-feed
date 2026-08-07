@@ -14,7 +14,7 @@ import { resolveSender } from "@/lib/email/sender";
  */
 
 interface LoginPageProps {
-  searchParams: Promise<{ skickat?: string; fel?: string }>;
+  searchParams: Promise<{ skickat?: string; fel?: string; nekad?: string }>;
 }
 
 export default async function LoginPage({ searchParams }: LoginPageProps) {
@@ -25,7 +25,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
     redirect("/dashboard");
   }
 
-  const { skickat, fel } = await searchParams;
+  const { skickat, fel, nekad } = await searchParams;
 
   return (
     <div className="flex min-h-full flex-col items-center justify-center bg-zinc-50 px-6 py-16 dark:bg-black">
@@ -56,6 +56,17 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
                 sorteras ofta undan första gången.
               </>
             )}
+          </p>
+        ) : null}
+
+        {/* Auth.js skickar hit efter att den magiska länken verifierats men
+            registreringen nekats. Texten säger med flit inte vilket läge som
+            gäller — det är driftinformation, inte något besökaren kan agera på. */}
+        {nekad ? (
+          <p className="mt-6 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200">
+            Tjänsten tar just nu inte emot nya konton. Har du redan ett konto
+            fungerar inloggningen som vanligt — kontrollera adressen och försök
+            igen.
           </p>
         ) : null}
 
