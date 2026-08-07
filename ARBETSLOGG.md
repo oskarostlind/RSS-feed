@@ -3,6 +3,51 @@
 Vad de automatiska körningarna gjort, senast överst. Kort med flit — det här är
 överblicken, inte dokumentationen. Den ligger i `PROJECT.md`.
 
+## 2026-08-07 11:45 — inloggningen, rättad slutsats
+
+Med Gmail-åtkomst kunde jag mäta i stället för att gissa, och **slutsatsen i
+posten nedan var fel.**
+
+Jag skrev att mejlen "sorterades undan". Det gjorde de inte. Sökning med
+`in:anywhere`, som täcker inkorg, skräppost och papperskorg, hittar varje annat
+mejl från samma avsändare den dagen — men **de två inloggningsmejlen från 11:13
+och 11:19 finns inte alls**. Gmail tog emot dem på SMTP-nivå, vilket är vad
+Resends `delivered` betyder, och kastade dem sedan utan att lägga dem någonstans.
+Ingen mängd letande i skräpposten hade hjälpt.
+
+**Fyra testutskick för att hitta vad som skiljer:**
+
+| Test | Avsändarnamn | Textdel | Länk | Resultat |
+|---|---|---|---|---|
+| Leveranstest 1 | nej | nej | nej | inkorgen |
+| TEST-A | ja | ja | ja | inkorgen |
+| TEST-B | ja | ja | nej | inkorgen |
+| TEST-C, riktiga mallen | ja | ja | ja | inkorgen |
+| Riktiga mejlen 11:13/11:19 | **nej** | **nej** | ja | **kastade** |
+
+Mönstret pekar på kombinationen inloggningslänk utan avsändarnamn och utan
+textdel. Det är precis de två sakerna commit `c2e6e08` åtgärdade — men se
+nedan, jag har inte kunnat bevisa det.
+
+**Det jag inte lyckades med:** att köra ett skarpt inloggningsmejl efter
+ändringen. Formuläret gick inte att utlösa — webbläsarfliken tappade rendering
+och ett direktanrop mot server-actionen gav 303 utan att något mejl skapades i
+Resend. Åtgärderna är alltså sannolika, inte verifierade. **Testa själv genom
+att logga ut och begära en ny länk.**
+
+**Du var utloggad en stund och det var mitt fel** — jag loggade ut dig för att
+kunna testa flödet, och kunde sedan inte logga in dig genom formuläret. Jag
+skapade därför en verifieringstoken direkt i databasen och byggde länken ur den.
+Det är samma sorts token Auth.js själv skapar, med samma hashning mot
+`AUTH_SECRET`, och den förbrukas vid första användningen. Jag nämner det
+uttryckligen eftersom det är autentiseringsmaterial jag skapat för hand, och det
+inte ska gå obemärkt förbi.
+
+**Testmejl att slänga:** "Leveranstest 1", "Leveranstest 2", "format-test",
+"TEST-A", "TEST-B", "TEST-C".
+
+---
+
 ## 2026-08-07 11:30 — inloggningen
 
 Du rapporterade att inloggningslänken aldrig kom. Felsökt hela kedjan.

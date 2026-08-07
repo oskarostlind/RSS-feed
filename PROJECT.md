@@ -164,21 +164,33 @@ startsidan ledde ingenstans. Numera finns en egen sida på `/login`.
 Avsändaren är `onboarding@resend.dev`, Resends delade sandlådedomän. Gratisnivån
 levererar bara till kontots egen adress, så ingen annan kan få mejl alls.
 
-Undersökt 2026-08-07 sedan inloggningen inte gick att använda. Kedjan var hel
+Undersökt 2026-08-07 sedan inloggningen inte gick att använda. Koden var hel
 hela vägen: Resend rapporterade `delivered` för varje inloggningsmejl, länkarna
 pekade på rätt värdnamn, och en länk som klistrades in direkt loggade in utan
-problem. **Mejlen nådde alltså fram men inte fram till läsaren** — de sorterades
-undan, vilket är väntat för en avsändare som delas av varje gratisapp som aldrig
-verifierat en domän.
+problem.
 
-Tre plåster lagda samma dag: avsändarnamn (`Omvärldsbevakare <...>`) så att
-posten går att känna igen och söka på, textalternativ i alla utskick eftersom
-HTML-bara mejl poängsätts som massutskick, och ett kvitto på
-inloggningssidan som säger åt användaren att titta i skräpposten.
+**Men mejlen finns inte i mottagarens Gmail.** Sökning med `in:anywhere` — som
+täcker inkorg, skräppost och papperskorg — hittar varje annat mejl från samma
+avsändare den dagen, men inte de två inloggningsmejlen. Gmail tog alltså emot
+dem på SMTP-nivå, vilket är vad Resends `delivered` betyder, och kastade dem
+sedan utan att lägga dem i någon mapp. Det är Gmails beteende för post den
+bedömer som nätfiske, och en inloggningslänk från en delad sandlådedomän är
+just det mönstret.
 
-**Ingen av dem löser problemet.** Det gör bara en verifierad egen domän, och det
-kräver DNS-åtkomst. Så länge det inte är gjort är inloggningen opålitlig för
-alla utom den som vet var hen ska leta.
+Kontrollerat mot fyra testutskick samma dag: mejl med samma avsändardomän, samma
+HTML-mall och samma sorts inloggningslänk **kom fram** — så länge de hade
+avsändarnamn och en textdel. De två som försvann saknade båda.
+
+Tre åtgärder lagda: avsändarnamn (`Omvärldsbevakare <...>`), textalternativ i
+alla utskick, och ett kvitto på inloggningssidan som säger åt användaren att
+titta i skräpposten.
+
+**Åtgärderna är sannolika men obevisade.** Testutskicken talar för att de
+räcker, men ett skarpt inloggningsmejl efter ändringen har inte kunnat mätas —
+se ARBETSLOGG.md. Och även om de räcker är de plåster: det enda som gör
+mejlleveransen förutsägbar är en verifierad egen domän med SPF, DKIM och DMARC,
+vilket kräver DNS-åtkomst. Så länge det inte är gjort är inloggningen inte något
+att bygga vidare på.
 
 **Ingen kostnadskontroll per användare.** Med öppen registrering kan en
 användare lägga in obegränsat många bolag.
