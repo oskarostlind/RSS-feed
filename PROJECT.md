@@ -524,8 +524,13 @@ kontoägaren skapar konto.
 16. ~~GDPR: radering och export av egen data~~ — **klart 2026-08-07.**
     `/dashboard/konto`
 17. ~~Personuppgiftspolicy~~ — **klart 2026-08-07.** `/integritetspolicy`
-18. **Öppna registreringen.** Ingen spärr finns i koden — Auth.js skapar
-    användaren vid första magiska länken. Orört med flit tills mejlen kommer
-    fram; en öppen registrering där ingen kan logga in är värre än en stängd
+18. **Bestäm om registreringen ska begränsas.** Den är i praktiken redan öppen:
+    Auth.js skapar användaren vid första magiska länken och ingen spärr finns.
+    Det enda som hindrar en främling idag är att mejlet inte kommer fram. Frågan
+    är alltså inte om den ska öppnas utan om den ska stängas — inbjudningskod,
+    väntelista eller fritt fram
+20. **Gränssnittsluckor som inte blockerar.** Ingen väg att byta mejladress,
+    ingen avregistreringslänk i morgonmejlet, inga laddningstillstånd, mobilvyn
+    obeprövad
 19. ~~Byt utskicksväg så att leverantören går att välja~~ — **klart
     2026-08-07.** SMTP eller Resend, styrt av miljön

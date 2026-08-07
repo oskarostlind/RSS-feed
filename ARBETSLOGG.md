@@ -3,6 +3,48 @@
 Vad de automatiska körningarna gjort, senast överst. Kort med flit — det här är
 överblicken, inte dokumentationen. Den ligger i `PROJECT.md`.
 
+## 2026-08-07 16:45 — gränssnittet genomgånget
+
+Du frågade om UI:t är klart och om folk kan skapa konton. **Svaret på det andra
+är ja, redan idag** — Auth.js skapar användaren vid första magiska länken och
+det finns ingen spärr i koden. Det enda som hindrar en främling är att mejlet
+inte kommer fram. §9.18 handlar alltså inte om att bygga registrering utan om
+att bestämma om den ska begränsas.
+
+**Ett fel som var mitt:** namnbytet i `d8458fb` tog inte på inloggningssidan.
+Ersättningen matchade en text som redan bytts i andra filer, så den föll tyst.
+Kvar blev "Omvärldsbevakare" i kvittot och en oanvänd variabel. Varken tsc eller
+eslint fångade det — jag hittade det först när jag faktiskt läste sidan.
+
+**Byggt:** `2ed20c2` och `1a0828e`.
+
+- **Startsidan var en utvecklarsida.** Den sa "MVP för proaktiv bevakning av
+  företagsomnämnanden" och hade två knappar som båda ledde till
+  inloggningsskyddade sidor — utan inloggningsknapp. Nu en riktig produktsida
+  med sidfot.
+- **404 och felsida fanns inte.** Next.js visade sina engelska standardsidor.
+  Felsidan säger med flit inte vad som gick fel, men visar Next.js `digest` som
+  går att söka på i Vercels loggar.
+- **Ny användare mötte en återvändsgränd.** Inkorgen sa "nya nyheter hämtas
+  varje morgon" även när användaren hade noll bolag. Tomma tillståndet är nu
+  villkorat och pekar på båda vägarna in.
+- **Importen var osynlig** — nås bara via direktlänk. Nu länkad från
+  bolagssidans tomma tillstånd.
+- `robots.ts`: `/api/debug` tar hemligheten som frågeparameter, och en
+  indexerad URL med `?secret=` i sig är svår att ta tillbaka.
+
+**Kvar i gränssnittet, inget av det blockerande:**
+
+- Ingen väg att byta mejladress
+- Ingen avregistreringslänk i morgonmejlet
+- Importguiden har fortfarande aldrig körts av en människa (§9.7)
+- Inga laddningstillstånd, och mobilvyn är obeprövad
+
+**Trasigt när jag slutade:** ingenting. 70 tester gröna, 404 och robots.txt
+verifierade i produktion, morgonjobbet friskt.
+
+---
+
 ## 2026-08-07 15:55 — Företagskollen, och mejlvägen bytt
 
 Domänen `foretagskollen.se` är köpt. **Allt som gick att göra utan att DNS är
