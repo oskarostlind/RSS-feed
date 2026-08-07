@@ -248,11 +248,17 @@ samtidiga GNews-anrop, och svaret blev HTTP 429. Strypning har därför en egen
 bedömning skild från haveri — en strypt källa lever, och åtgärden är att sänka
 `DISCOVERY_CONCURRENCY`, inte att undersöka leverantörens drift.
 
-Värt att överväga: **GNews bidrar ingenting.** Den har gett noll träffar i varje
-mätning sedan 2026-08-06, kostar ett anrop per bolag, och är den enda källan som
-kan slå i en kvot. Att slå av den skulle göra körningen snabbare och tystare
-utan att kosta täckning. Inte gjort, eftersom det är ett vägval om
-källstrategin och inte en bugg.
+Värt att överväga: **GNews bidrar nästan ingenting till det tjänsten är till
+för.** På Peges — testfallet, ett lokalt industribolag — har den gett noll
+träffar i varje mätning sedan 2026-08-06. På Ericsson gav den 11:10 samma dag
+åtta träffar, men Ericsson är riksmedia och redan väl täckt av de två
+RSS-källorna; samtliga åtta låg dessutom utanför tidsfönstret.
+
+Bilden är alltså inte "GNews ger noll" utan "GNews ger träffar där vi redan har
+täckning och noll där vi behöver den". Den kostar ett anrop per bolag och är den
+enda källa som kan slå i en kvot. Att slå av den är fortfarande värt att
+överväga, men beslutet bör grundas på en mätning över flera lokala bolag och
+inte på testfallet ensamt.
 
 **Länkarna går via Google.** Nya artikel-ID:n är krypterade, så publicistens
 riktiga URL går inte att gräva fram. Länken fungerar för en läsare, men
@@ -331,7 +337,8 @@ personuppgiftspolicy och rutin för radering innan öppen registrering.
    produktionsmiljön via `/api/debug/import-test`, men själva formuläret har
    ingen människa provat
 8. Verifierad mejldomän i Resend
-9. Överväg att slå av GNews. Noll träffar i varje mätning, ett anrop per bolag,
-   och den enda källa som kan slå i en kvot — se avsnitt 7
+9. Mät GNews täckning över flera **lokala** bolag och slå av den om bilden
+   håller. Noll träffar på Peges i varje mätning, men åtta på Ericsson — se
+   avsnitt 7. Beslutet bör inte grundas på testfallet ensamt
 10. ~~Kostnadstak per **användare**, inte bara per import~~ — **klart
     2026-08-07.** Portföljtak härlett ur körningens kapacitet, se avsnitt 6

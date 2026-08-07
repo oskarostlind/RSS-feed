@@ -3,6 +3,37 @@
 Vad de automatiska körningarna gjort, senast överst. Kort med flit — det här är
 överblicken, inte dokumentationen. Den ligger i `PROJECT.md`.
 
+## 2026-08-07 11:12
+
+**Byggt:** `e0ac825` — baseline-migration `0_init`, genererad ur schemat och
+markerad som redan körd i produktionsdatabasen. Schemat går nu att läsa ur
+repot, och en ny databas kan få det utan att någon minns vilka `db push` som
+gjordes när.
+
+**Byggkommandot är avsiktligt orört.** Att lägga `prisma migrate deploy` först i
+det hade stängt hålet helt — det är det som skulle ha räddat morgonjobbet när
+databasen byttes i morse. Men det ändrar vad *varje* deploy gör mot
+produktionsdatabasen, och det beslutet hör hemma hos någon som ser det hända.
+Jag försökte köra `migrate deploy` som verifiering och du avbröt det, vilket
+jag läser som samma svar. Baseline-migrationen var förutsättningen och den är
+gjord; exakt vad som ska ändras står i `prisma/migrations/README.md`.
+
+**Jag hade fel om GNews.** I loggen 10:02 föreslog jag att slå av den med
+motiveringen "noll träffar i varje mätning". Körningen 11:10 gav åtta träffar
+för Ericsson. Bilden är alltså inte att GNews ger noll, utan att den ger
+träffar där vi *redan* har täckning — riksmedia — och noll på Peges, som är
+precis den sortens lokala bolag tjänsten finns för. Förslaget står kvar men
+omformulerat: mät över flera lokala bolag först. §9.9 är rättad.
+
+**Mätning efter:** dubbelkörning ger `created: 0` och `skipped: 117` för
+Ericsson, alltså lika med antalet träffar. `sourceHealth.healthy: true`, inga
+tysta eller trasiga källor. Databasen orörd: 2 bolag, 140 artiklar,
+6 jobbannonser.
+
+**Trasigt när jag slutade:** ingenting.
+
+---
+
 ## 2026-08-07 10:58
 
 **Byggt:**
