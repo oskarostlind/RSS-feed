@@ -30,6 +30,8 @@ declare module "nodemailer" {
     subject: string;
     html: string;
     text: string;
+    /** Egna huvuden, i praktiken List-Unsubscribe och List-Unsubscribe-Post. */
+    headers?: Record<string, string>;
   }
 
   export interface SentMessageInfo {

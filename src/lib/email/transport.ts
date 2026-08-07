@@ -24,6 +24,14 @@ export interface OutgoingEmail {
   html: string;
   /** Ett HTML-bara mejl poängsätts som massutskick. Aldrig valfritt. */
   text: string;
+  /**
+   * Extra huvuden, i praktiken `List-Unsubscribe` och `List-Unsubscribe-Post`.
+   *
+   * Ligger här och inte i `EmailService` därför att båda vägarna måste bära dem
+   * — Gmail kräver enklicksavregistrering av avsändare med volym, och en
+   * avsändare som saknar det poängsätts sämre oavsett innehåll.
+   */
+  headers?: Record<string, string>;
 }
 
 export interface SentEmail {
@@ -90,6 +98,7 @@ async function sendViaSmtp(
     subject: email.subject,
     html: email.html,
     text: email.text,
+    headers: email.headers,
   });
 
   return { id: info.messageId, via: "smtp" };
@@ -110,6 +119,7 @@ async function sendViaResend(email: OutgoingEmail): Promise<SentEmail> {
     subject: email.subject,
     html: email.html,
     text: email.text,
+    headers: email.headers,
   });
 
   if (response.error) {

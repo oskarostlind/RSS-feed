@@ -1,23 +1,36 @@
 import Link from "next/link";
-import { deleteAccountAction, exportAccountData } from "@/lib/account/actions";
-import { auth } from "@/lib/auth";
+import {
+  deleteAccountAction,
+  exportAccountData,
+  setMorningEmailAction,
+} from "@/lib/account/actions";
+import { auth, getRequiredUserId } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
 import { DataExportButton } from "./_components/DataExportButton";
 
 export const dynamic = "force-dynamic";
 
 interface KontoPageProps {
-  searchParams: Promise<{ fel?: string }>;
+  searchParams: Promise<{ fel?: string; mejl?: string }>;
 }
 
 const FELMEDDELANDEN: Record<string, string> = {
   bekraftelse: 'Du måste skriva RADERA i rutan för att bekräfta.',
   misslyckades: "Kontot kunde inte raderas. Försök igen.",
+  mejlinstallning: "Inställningen kunde inte sparas. Försök igen.",
 };
 
 export default async function KontoPage({ searchParams }: KontoPageProps) {
-  const { fel } = await searchParams;
+  const { fel, mejl } = await searchParams;
   const session = await auth();
   const data = await exportAccountData();
+
+  const userId = await getRequiredUserId();
+  const konto = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { morningEmailOptOutAt: true },
+  });
+  const morgonmejlPa = konto?.morningEmailOptOutAt == null;
 
   const antalBolag = data.bolag.length;
   const antalNyheter = data.bolag.reduce(
@@ -69,6 +82,50 @@ export default async function KontoPage({ searchParams }: KontoPageProps) {
         <DataExportButton />
       </section>
 
+      <section className="mt-12">
+        <h2 className="text-lg font-medium text-zinc-900 dark:text-zinc-50">
+          Morgonmejlet
+        </h2>
+        <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
+          {morgonmejlPa
+            ? "Du får ett mejl på morgonen när något nytt hittats om dina bolag. Uteblir mejlet betyder det att natten var tyst."
+            : "Du får inga morgonmejl. Bevakningarna körs som vanligt och nyheterna syns i inkorgen här."}
+        </p>
+
+        {/* Kvitto och fel hör hemma vid den knapp de gäller. Den delade
+            felrutan längre ner tillhör raderingen, och ett meddelande om
+            mejlinställningar i en röd ruta läser sig som något värre än det är. */}
+        {mejl && (
+          <p
+            role="status"
+            className="mt-4 rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-700 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-300"
+          >
+            {mejl === "pa"
+              ? "Morgonmejlet är påslaget igen."
+              : "Morgonmejlet är avstängt."}
+          </p>
+        )}
+
+        {fel === "mejlinstallning" && (
+          <p
+            role="alert"
+            className="mt-4 rounded-md border border-red-300 bg-white px-3 py-2 text-sm text-red-800 dark:border-red-800 dark:bg-red-950 dark:text-red-200"
+          >
+            {FELMEDDELANDEN.mejlinstallning}
+          </p>
+        )}
+
+        <form action={setMorningEmailAction} className="mt-4">
+          <input type="hidden" name="aktivera" value={morgonmejlPa ? "0" : "1"} />
+          <button
+            type="submit"
+            className="rounded-md border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-zinc-900 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-50 dark:hover:bg-zinc-900"
+          >
+            {morgonmejlPa ? "Stäng av morgonmejlet" : "Slå på morgonmejlet"}
+          </button>
+        </form>
+      </section>
+
       <section className="mt-12 rounded-lg border border-red-200 bg-red-50 p-6 dark:border-red-900/50 dark:bg-red-950/20">
         <h2 className="text-lg font-medium text-red-900 dark:text-red-200">
           Radera kontot
@@ -80,7 +137,7 @@ export default async function KontoPage({ searchParams }: KontoPageProps) {
           att återställa från.
         </p>
 
-        {fel && FELMEDDELANDEN[fel] && (
+        {fel && fel !== "mejlinstallning" && FELMEDDELANDEN[fel] && (
           <p
             role="alert"
             className="mt-4 rounded-md border border-red-300 bg-white px-3 py-2 text-sm text-red-800 dark:border-red-800 dark:bg-red-950 dark:text-red-200"

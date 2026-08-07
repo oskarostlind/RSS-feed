@@ -24,6 +24,16 @@ model User {
   accounts      Account[]
   sessions      Session[]
   companies     Company[]
+
+  /**
+   * Satt när användaren avregistrerat sig från morgonmejlet. Nullbar utan
+   * default, så att befintliga och nya användare prenumererar som förval — att
+   * av misstag avregistrera någon är ett tystare fel än motsatsen.
+   *
+   * En tidsstämpel och inte en boolean: vid en klagan om "jag får fortfarande
+   * mejl" är frågan alltid *när* det stängdes av, inte om.
+   */
+  morningEmailOptOutAt DateTime?
 }
 
 model Account {

@@ -47,6 +47,13 @@ interface MorningSummaryEmailProps {
    * de". En AM läser dem med annan blick.
    */
   jobAds?: MorningSummaryJobAdItem[];
+  /**
+   * Avregistreringslänken. Utelämnas när den inte går att bygga — se
+   * `unsubscribeToken.ts`. En länk som leder fel är sämre än ingen alls;
+   * mottagaren klickar, får ett fel, och drar slutsatsen att avsändaren inte
+   * går att bli av med.
+   */
+  unsubscribeUrl?: string | null;
 }
 
 function buildJobAdSubtitle(item: MorningSummaryJobAdItem): string {
@@ -69,6 +76,7 @@ export function MorningSummaryEmail({
   newsItems,
   possibleItems = [],
   jobAds = [],
+  unsubscribeUrl = null,
 }: MorningSummaryEmailProps) {
   const articleCountLabel = buildArticleCountLabel(newsItems.length);
 
@@ -198,9 +206,18 @@ export function MorningSummaryEmail({
 
             <Section className="mt-8 text-center">
               <Text className="m-0 text-xs leading-5 text-zinc-400">
-                Detta mejl skickades automatiskt efter cron-jobbets nattliga
-                nyhetssökning.
+                Detta mejl skickades automatiskt efter nattens nyhetssökning.
               </Text>
+              {unsubscribeUrl ? (
+                <Text className="m-0 mt-2 text-xs leading-5 text-zinc-400">
+                  <Link
+                    href={unsubscribeUrl}
+                    className="text-zinc-400 underline"
+                  >
+                    Avsluta morgonmejlet
+                  </Link>
+                </Text>
+              ) : null}
             </Section>
           </Container>
         </Body>

@@ -52,10 +52,38 @@ function buildMorningSubject(newsCount: number, jobCount: number): string {
   return `Morgonsammanfattning – ${parts.join(", ")}`;
 }
 
+/**
+ * Huvudena som ger Gmail och Outlook en egen avregistreringsknapp vid
+ * avsändarnamnet (RFC 8058 respektive RFC 2369).
+ *
+ * De två hör ihop: `List-Unsubscribe-Post` är det som gör knappen till ett
+ * klick i stället för en omväg via webbläsaren, men den räknas bara när
+ * `List-Unsubscribe` också bär en `https`-URL. `mailto:` utelämnas medvetet —
+ * vi har ingen inkorg som läser och behandlar sådana, och ett huvud som lovar
+ * något vi inte gör är sämre än inget huvud.
+ */
+function buildListUnsubscribeHeaders(
+  unsubscribeUrl: string | null,
+): Record<string, string> | undefined {
+  if (!unsubscribeUrl) {
+    return undefined;
+  }
+
+  // Enklicksvägen är API-rutten, inte bekräftelsesidan: klienten förväntar sig
+  // en tom 200 och tolkar en HTML-sida som misslyckande.
+  const oneClick = unsubscribeUrl.replace("/avregistrera?", "/api/avregistrera?");
+
+  return {
+    "List-Unsubscribe": `<${oneClick}>`,
+    "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+  };
+}
+
 function buildMorningSummaryText(
   newsItems: MorningSummaryNewsItem[],
   possibleItems: MorningSummaryNewsItem[],
   jobAds: MorningSummaryJobAdItem[],
+  unsubscribeUrl: string | null,
 ): string {
   const lines: string[] = ["Morgonsammanfattning", ""];
 
@@ -84,6 +112,10 @@ function buildMorningSummaryText(
     for (const item of possibleItems) {
       lines.push(`- ${item.companyName}: ${item.title}`, `  ${item.url}`);
     }
+  }
+
+  if (unsubscribeUrl) {
+    lines.push("", "Avsluta morgonmejlet:", unsubscribeUrl);
   }
 
   return lines.join("\n");
@@ -116,10 +148,17 @@ export class EmailService {
       to?: string;
       possibleItems?: MorningSummaryNewsItem[];
       jobAds?: MorningSummaryJobAdItem[];
+      /**
+       * Färdigbyggd av anroparen, som är den enda som känner både användarens
+       * id och tjänstens publika adress. Null när den inte gick att bygga —
+       * mejlet skickas ändå, men utan länk.
+       */
+      unsubscribeUrl?: string | null;
     },
   ): Promise<SendMorningSummaryResult> {
     const possibleItems = options?.possibleItems ?? [];
     const jobAds = options?.jobAds ?? [];
+    const unsubscribeUrl = options?.unsubscribeUrl ?? null;
 
     // En morgon utan artiklar men med nya jobbannonser är fortfarande värd ett
     // mejl — rekryteringen är hela poängen med den källan.
@@ -136,7 +175,7 @@ export class EmailService {
       // Renderas här i stället för att skickas som React till Resend: SMTP
       // tar bara färdig HTML, och båda vägarna ska få exakt samma mejl.
       const html = await render(
-        MorningSummaryEmail({ newsItems, possibleItems, jobAds }),
+        MorningSummaryEmail({ newsItems, possibleItems, jobAds, unsubscribeUrl }),
       );
 
       const sent = await sendEmail({
@@ -146,7 +185,13 @@ export class EmailService {
         html,
         // Textalternativ, av samma skäl som för inloggningsmejlet: ett
         // HTML-bara mejl ser ut som massutskick för spamfiltren.
-        text: buildMorningSummaryText(newsItems, possibleItems, jobAds),
+        text: buildMorningSummaryText(
+          newsItems,
+          possibleItems,
+          jobAds,
+          unsubscribeUrl,
+        ),
+        headers: buildListUnsubscribeHeaders(unsubscribeUrl),
       });
 
       return { id: sent.id };

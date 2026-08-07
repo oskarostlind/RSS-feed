@@ -29,6 +29,11 @@ export interface UserDiscoveryResult {
   email: string;
   /** Falskt för t.ex. seed-kontot mvp-dev@localhost, som inte ska mejlas. */
   emailDeliverable: boolean;
+  /**
+   * Sant när användaren avregistrerat sig. Sökningen körs ändå — nyheterna ska
+   * fortsätta samlas för dashboarden, det är bara utskicket som upphör.
+   */
+  morningEmailOptedOut: boolean;
   results: CompanyDiscoveryResult[];
   createdNewsItems: MorningSummaryNewsItem[];
   possibleNewsItems: MorningSummaryNewsItem[];
@@ -137,10 +142,14 @@ export async function executeDiscoveryJob(
   const companies = companyId
     ? await prisma.company.findMany({
         where: { id: companyId },
-        include: { user: { select: { id: true, email: true } } },
+        include: {
+          user: { select: { id: true, email: true, morningEmailOptOutAt: true } },
+        },
       })
     : await prisma.company.findMany({
-        include: { user: { select: { id: true, email: true } } },
+        include: {
+          user: { select: { id: true, email: true, morningEmailOptOutAt: true } },
+        },
         // Äldst kontrollerad först, aldrig kontrollerad allra först. Det är
         // det som gör tidsbudgeten rättvis: hinner körningen bara halva
         // portföljen tar nästa körning den andra halvan, i stället för att
@@ -196,6 +205,7 @@ export async function executeDiscoveryJob(
           userId: company.userId,
           email: company.user.email,
           emailDeliverable: isDeliverableEmail(company.user.email),
+          morningEmailOptedOut: company.user.morningEmailOptOutAt !== null,
           results: [],
           createdNewsItems: [],
           possibleNewsItems: [],

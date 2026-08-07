@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { buildSearchErrorResponse } from "@/lib/api/searchErrorResponse";
 import { verifyCronSecret } from "@/lib/auth/verifyCronSecret";
 import { EmailService, EmailServiceError } from "@/lib/email/EmailService";
+import { buildUnsubscribeUrl } from "@/lib/email/unsubscribeToken";
+import { resolveAppBaseUrl } from "@/lib/appUrl";
 import { executeDiscoveryJob } from "@/lib/search/executeDiscoveryJob";
 import { SearchServiceError } from "@/lib/search/SearchService";
 import type { SourceHealthReport } from "@/lib/search/sourceHealth";
@@ -123,6 +125,11 @@ export async function GET(request: Request): Promise<NextResponse> {
     const result = await executeDiscoveryJob();
     const deliveries: EmailDeliveryReport[] = [];
 
+    // Härleds en gång per körning, inte per användare. Requesten är cron-
+    // anropet från Vercel och bär därför produktionsvärden — se `appUrl.ts`
+    // för varför den vägen är pålitligare än AUTH_URL just i det här projektet.
+    const appBaseUrl = resolveAppBaseUrl(request);
+
     // Instansieras en gång — men bara om det finns något att mejla, så att en
     // saknad RESEND_API_KEY inte sänker en körning utan nya artiklar.
     let emailService: EmailService | null = null;
@@ -163,6 +170,20 @@ export async function GET(request: Request): Promise<NextResponse> {
         continue;
       }
 
+      // Kontrolleras efter "inga nya poster" men före utskicket: en
+      // avregistrerad användares bolag söks fortfarande, eftersom dashboarden
+      // ska fortsätta fyllas. Det enda som upphör är mejlet.
+      if (user.morningEmailOptedOut) {
+        deliveries.push({
+          ...base,
+          sent: false,
+          emailId: null,
+          error: null,
+          skippedReason: "unsubscribed",
+        });
+        continue;
+      }
+
       try {
         emailService ??= EmailService.fromEnv();
 
@@ -172,6 +193,7 @@ export async function GET(request: Request): Promise<NextResponse> {
             to: user.email,
             possibleItems: user.possibleNewsItems,
             jobAds: user.createdJobAds,
+            unsubscribeUrl: buildUnsubscribeUrl(user.userId, appBaseUrl),
           },
         );
 

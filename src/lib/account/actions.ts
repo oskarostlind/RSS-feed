@@ -46,6 +46,31 @@ export async function deleteAccountAction(formData: FormData): Promise<void> {
   await signOut({ redirectTo: "/?raderat=1" });
 }
 
+/**
+ * Slår morgonmejlet av eller på från kontosidan.
+ *
+ * Den här vägen kräver inloggning, till skillnad från länken i mejlet. Skälet
+ * är att den går åt båda hållen: att *slå på* mejlet åt någon annan vore ett
+ * sätt att använda tjänsten för att skicka post till en adress som bett att
+ * slippa. Att stänga av är ofarligt och får därför gå utan session.
+ */
+export async function setMorningEmailAction(formData: FormData): Promise<void> {
+  const userId = await getRequiredUserId();
+  const enable = formData.get("aktivera") === "1";
+
+  try {
+    await prisma.user.update({
+      where: { id: userId },
+      data: { morningEmailOptOutAt: enable ? null : new Date() },
+    });
+  } catch (error) {
+    console.error(`Failed to change morning email setting for ${userId}:`, error);
+    redirect("/dashboard/konto?fel=mejlinstallning");
+  }
+
+  redirect(`/dashboard/konto?mejl=${enable ? "pa" : "av"}`);
+}
+
 export interface AccountExport {
   exporterad: string;
   konto: { epost: string | null; skapadKonton: number };
