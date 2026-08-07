@@ -13,7 +13,7 @@ export default async function DashboardLayout({
   const session = await auth();
 
   if (!session?.user) {
-    redirect("/api/auth/signin");
+    redirect("/login");
   }
 
   const userLabel = session.user.email ?? session.user.name ?? "Inloggad";

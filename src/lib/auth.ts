@@ -57,6 +57,43 @@ function buildMagicLinkEmailHtml(url: string): string {
 </html>`;
 }
 
+/**
+ * Kastar en ogiltig `AUTH_URL` innan Auth.js hinner läsa den.
+ *
+ * Produktionsmiljön hade `https://rss-feed-lime.vercel.` — en avklippt
+ * inklistring som tappat `app`. Auth.js bygger både omdirigeringar och den
+ * magiska länken ur det värdet, så varje inloggningsmejl pekade på en adress
+ * som inte finns. Ett värdnamn som slutar med punkt kan aldrig vara riktigt.
+ *
+ * Vi raderar hellre variabeln än litar på den: med `trustHost` härleder Auth.js
+ * rätt adress ur requestens `x-forwarded-host`, vilket alltid stämmer på
+ * Vercel. Rätta gärna variabeln ändå — det här är ett skyddsnät, inte en fix.
+ */
+function discardInvalidAuthUrl(): void {
+  const raw = process.env.AUTH_URL?.trim();
+
+  if (!raw) {
+    return;
+  }
+
+  try {
+    const { hostname } = new URL(raw);
+
+    if (!hostname.endsWith(".")) {
+      return;
+    }
+  } catch {
+    // Går den inte att tolka som URL är den oanvändbar — fall igenom.
+  }
+
+  console.warn(
+    `AUTH_URL är ogiltig ("${raw}") och ignoreras. Adressen härleds från requesten i stället.`,
+  );
+  delete process.env.AUTH_URL;
+}
+
+discardInvalidAuthUrl();
+
 export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter: PrismaAdapter(prisma),
   providers: [
@@ -91,7 +128,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     strategy: "database",
   },
   pages: {
-    signIn: "/api/auth/signin",
+    signIn: "/login",
   },
   callbacks: {
     session({ session, user }) {
@@ -106,7 +143,7 @@ export async function getRequiredUserId(): Promise<string> {
   const session = await auth();
 
   if (!session?.user?.id) {
-    redirect("/api/auth/signin");
+    redirect("/login");
   }
 
   return session.user.id;
