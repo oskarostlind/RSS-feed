@@ -187,10 +187,33 @@ täckte upp och Peges-förvärvet nåddes ändå, vilket är precis varför två
 oberoende källor finns.
 
 **Det allvarliga är att en tyst nolla ser ut som "inga nyheter".** Händer det
-kl 07 uteblir mejlet utan att någon får veta att bevakningen låg nere. Vi
-behöver ett larm som jämför utfallet mot ett känt referensvärde och säger till
-när en källa tystnar — inte bara när den kastar fel. `?probe=` i
-`/api/debug/source-test` visar råsvaret och är första steget dit.
+kl 07 uteblir mejlet utan att någon får veta att bevakningen låg nere.
+
+**Larm byggt 2026-08-07.** Hälsan härleds ur körningen som redan gjorts i
+stället för att kosta egna anrop mot ett referensbolag — det mäter vad som
+faktiskt hände för den riktiga portföljen, och kan inte själv gå sönder så att
+larmet tystnar. `sourceHealth` i cron-svaret, och `console.error` för det som
+ska väcka någon. Det krävde att `RssFeedService` behåller uppdelningen per
+leverantör; sammanslagningen var precis det som dolde att en källa tystnat.
+
+Den svåra delen var inte att larma utan att *inte* larma. En källa som ger noll
+när ingen annan källa heller hittar något är en lugn dag. GNews och JobTech är
+helt undantagna från tystnadslarm: GNews ger noll på svensk lokalpress som
+normaltillstånd, och ett bolag som inte rekryterar ger noll annonser korrekt.
+Logiken är tabelltestad i `sourceHealth.test.ts` — den går inte att verifiera
+skarpt, eftersom en källa inte tystnar på beställning.
+
+**GNews gratisnivå tål inte parallellisering.** Upptäckt samma dag, av det nya
+larmet, i kod som skrivits en timme tidigare: fem bolag samtidigt är fem
+samtidiga GNews-anrop, och svaret blev HTTP 429. Strypning har därför en egen
+bedömning skild från haveri — en strypt källa lever, och åtgärden är att sänka
+`DISCOVERY_CONCURRENCY`, inte att undersöka leverantörens drift.
+
+Värt att överväga: **GNews bidrar ingenting.** Den har gett noll träffar i varje
+mätning sedan 2026-08-06, kostar ett anrop per bolag, och är den enda källan som
+kan slå i en kvot. Att slå av den skulle göra körningen snabbare och tystare
+utan att kosta täckning. Inte gjort, eftersom det är ett vägval om
+källstrategin och inte en bugg.
 
 **Länkarna går via Google.** Nya artikel-ID:n är krypterade, så publicistens
 riktiga URL går inte att gräva fram. Länken fungerar för en läsare, men
@@ -260,8 +283,10 @@ personuppgiftspolicy och rutin för radering innan öppen registrering.
    Diagnostik på `/api/debug/jobtech-test`
 5. ~~Kö-arkitektur för 100+ bolag~~ — **delvis klart 2026-08-07.**
    Parallellisering, tidsbudget och markör, se avsnitt 6. Fan-out återstår
-6. Larm när en källa tystnar — jämför utfallet mot ett känt referensvärde och
-   säg till när en källa ger noll utan att kasta fel. Se avsnitt 7; en tyst
-   nolla ser i dag ut som "inga nyheter"
+6. ~~Larm när en källa tystnar~~ — **klart 2026-08-07.** Härlett ur körningen,
+   tabelltestat, se avsnitt 7. Larmet syns bara i Vercels loggar; att mejla vid
+   `silent` återstår
 7. Massimport av bolag från `.xlsx` och `.csv` — se avsnitt 5
 8. Verifierad mejldomän i Resend
+9. Överväg att slå av GNews. Noll träffar i varje mätning, ett anrop per bolag,
+   och den enda källa som kan slå i en kvot — se avsnitt 7

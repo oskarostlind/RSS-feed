@@ -3,6 +3,52 @@
 Vad de automatiska körningarna gjort, senast överst. Kort med flit — det här är
 överblicken, inte dokumentationen. Den ligger i `PROJECT.md`.
 
+## 2026-08-07 10:02
+
+Fortsättning på passet nedan, samma körning.
+
+**Byggt:**
+
+- `934fcb7` — larm när en källa svarar men inget säger (ny §9.6). Härlett ur
+  körningen som redan gjorts, inte ur egna anrop mot ett referensbolag, så att
+  larmet mäter den riktiga portföljen och inte kan tystna av sig självt.
+  Krävde att `RssFeedService` behåller uppdelningen per leverantör
+- `a5ec2ae` — rättning av det larmet hittade om sig självt, se nedan
+- Repots första testfil, `sourceHealth.test.ts`, sju fall. Nodes inbyggda
+  testkörare, inget ramverk. `npm test`
+
+**Larmet hittade ett riktigt fel första gången det kördes skarpt — i min egen
+kod från en timme tidigare.** GNews svarade HTTP 429 för ett av två bolag.
+Orsaken var parallelliseringen i `c985646`: fem bolag samtidigt är fem
+samtidiga GNews-anrop, och gratisnivån klarar långt färre. Larmet kallade det
+"failing", alltså källan nere, vilket var fel diagnos — den strypte oss.
+Strypning har nu en egen bedömning, loggas som `warn` och räknas inte som
+ohälsa. Slås de ihop drunknar de riktiga larmen i kvotbrus.
+
+**Mätning efter:** `healthy: true`, `throttled: ["gnews"]`, `failing: []`.
+Dubbelkörning: `created: 0`, `skipped` lika med antalet träffar (15, 110, 6).
+
+**Gissningar:**
+
+- **Tröskeln för "tyst" är noll träffar över *hela* portföljen** medan någon
+  annan källa levererar. Alternativet — att larma per bolag — hade larmat varje
+  dag, eftersom enskilda bolag ofta saknar nyheter hos en av källorna
+- **GNews och JobTech undantagna från tystnadslarm.** GNews ger noll på svensk
+  lokalpress som normaltillstånd, och ett bolag som inte rekryterar ger noll
+  annonser korrekt. Att larma på dem hade gjort larmet till brus
+- **`allowImportingTsExtensions` påslaget i tsconfig** för att Nodes testkörare
+  kräver filändelse i importen. Ofarligt här eftersom `noEmit` redan är satt
+  och Next bygger med turbopack, inte tsc
+
+**Föreslaget, inte byggt:** slå av GNews. Noll träffar i varje mätning sedan
+2026-08-06, ett anrop per bolag, och den enda källa som kan slå i en kvot. Det
+är ett vägval om källstrategin, inte en bugg, så jag lämnar det till dig.
+Ligger som §9.9.
+
+**Trasigt när jag slutade:** ingenting.
+
+---
+
 ## 2026-08-07 09:50
 
 **Hälsa vid start:** Peges-förvärvet hittas. 15 träffar (google-rss 12,
