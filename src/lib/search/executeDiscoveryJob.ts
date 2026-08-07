@@ -2,6 +2,12 @@ import type { MorningSummaryNewsItem } from "@/lib/email/EmailService";
 import { JobTechService } from "@/lib/jobs/JobTechService";
 import type { MorningSummaryJobAd } from "@/lib/jobs/runCompanyJobSearch";
 import { prisma } from "@/lib/prisma";
+import {
+  chunk,
+  resolveBudgetMs,
+  resolveConcurrency,
+  startDeadline,
+} from "@/lib/search/discoveryBudget";
 import { resolveWindowDays } from "@/lib/search/recency";
 import { RssFeedService } from "@/lib/search/RssFeedService";
 import { SearchService } from "@/lib/search/SearchService";
@@ -31,6 +37,15 @@ export interface DiscoveryJobResult {
   archivedNewsItems: number;
   /** Nya jobbannonser inom fönstret, summerat över alla bolag. */
   createdJobAdCount: number;
+  /**
+   * Bolag som fanns i portföljen men som tidsbudgeten inte räckte till.
+   * Noll är det normala; ett tal över noll betyder att portföljen vuxit förbi
+   * vad en enskild körning hinner med, och att kön behöver höjas eller delas.
+   */
+  companiesSkippedForTime: number;
+  /** Hur lång tid sökningen tog, exklusive mejlutskick. */
+  discoveryDurationMs: number;
+  concurrency: number;
   perUser: UserDiscoveryResult[];
   results: CompanyDiscoveryResult[];
   createdNewsItems: MorningSummaryNewsItem[];
@@ -60,6 +75,29 @@ function isJobTechEnabled(): boolean {
   return process.env.JOBTECH_ENABLED?.toLowerCase() !== "false";
 }
 
+/**
+ * Flyttar fram markören för de bolag som just bearbetats.
+ *
+ * Ett misslyckande här får inte sänka körningen — artiklarna är redan sparade
+ * och mejlet är fortfarande värt att skicka. Konsekvensen av att markören inte
+ * flyttas är att bolaget söks om nästa körning, vilket dedupliceringen ändå
+ * fångar upp.
+ */
+async function markCompaniesChecked(companyIds: string[]): Promise<void> {
+  if (companyIds.length === 0) {
+    return;
+  }
+
+  try {
+    await prisma.company.updateMany({
+      where: { id: { in: companyIds } },
+      data: { lastCheckedAt: new Date() },
+    });
+  } catch (error) {
+    console.error("Failed to update lastCheckedAt for companies:", error);
+  }
+}
+
 export async function executeDiscoveryJob(
   companyId?: string,
 ): Promise<DiscoveryJobResult> {
@@ -70,6 +108,11 @@ export async function executeDiscoveryJob(
       })
     : await prisma.company.findMany({
         include: { user: { select: { id: true, email: true } } },
+        // Äldst kontrollerad först, aldrig kontrollerad allra först. Det är
+        // det som gör tidsbudgeten rättvis: hinner körningen bara halva
+        // portföljen tar nästa körning den andra halvan, i stället för att
+        // samma bolag söks om och om medan resten aldrig kommer till.
+        orderBy: [{ lastCheckedAt: { sort: "asc", nulls: "first" } }],
       });
 
   if (companyId && companies.length === 0) {
@@ -84,43 +127,64 @@ export async function executeDiscoveryJob(
   const rssFeedService = new RssFeedService();
   const jobTechService = isJobTechEnabled() ? new JobTechService() : null;
 
+  const concurrency = resolveConcurrency();
+  const deadline = startDeadline(resolveBudgetMs());
+
   const byUser = new Map<string, UserDiscoveryResult>();
+  let processed = 0;
 
-  for (const company of companies) {
-    const result = await runCompanyDiscovery(
-      company.id,
-      company.name,
-      searchService,
-      rssFeedService,
-      jobTechService,
-    );
-
-    let entry = byUser.get(company.userId);
-
-    if (!entry) {
-      entry = {
-        userId: company.userId,
-        email: company.user.email,
-        emailDeliverable: isDeliverableEmail(company.user.email),
-        results: [],
-        createdNewsItems: [],
-        possibleNewsItems: [],
-        createdJobAds: [],
-      };
-      byUser.set(company.userId, entry);
+  for (const group of chunk(companies, concurrency)) {
+    // Budgeten kontrolleras mellan grupper, inte inuti dem. En påbörjad grupp
+    // körs alltid färdigt — att avbryta mitt i skulle lämna halva gruppen utan
+    // uppdaterad markör och därmed söka om den nästa körning.
+    if (!deadline.hasTimeLeft()) {
+      break;
     }
 
-    entry.results.push(result);
-    entry.createdNewsItems.push(...result.createdItems);
-    entry.possibleNewsItems.push(...result.createdPossibleItems);
-    entry.createdJobAds.push(...result.jobs.createdItems);
+    const groupResults = await Promise.all(
+      group.map((company) =>
+        runCompanyDiscovery(
+          company.id,
+          company.name,
+          searchService,
+          rssFeedService,
+          jobTechService,
+        ),
+      ),
+    );
+
+    group.forEach((company, index) => {
+      const result = groupResults[index];
+      let entry = byUser.get(company.userId);
+
+      if (!entry) {
+        entry = {
+          userId: company.userId,
+          email: company.user.email,
+          emailDeliverable: isDeliverableEmail(company.user.email),
+          results: [],
+          createdNewsItems: [],
+          possibleNewsItems: [],
+          createdJobAds: [],
+        };
+        byUser.set(company.userId, entry);
+      }
+
+      entry.results.push(result);
+      entry.createdNewsItems.push(...result.createdItems);
+      entry.possibleNewsItems.push(...result.createdPossibleItems);
+      entry.createdJobAds.push(...result.jobs.createdItems);
+    });
+
+    processed += group.length;
+    await markCompaniesChecked(group.map((company) => company.id));
   }
 
   const perUser = [...byUser.values()];
   const results = perUser.flatMap((entry) => entry.results);
 
   return {
-    companiesProcessed: companies.length,
+    companiesProcessed: processed,
     usersProcessed: perUser.length,
     windowDays: resolveWindowDays(),
     archivedNewsItems: results.reduce(
@@ -131,6 +195,9 @@ export async function executeDiscoveryJob(
       (sum, entry) => sum + entry.createdJobAds.length,
       0,
     ),
+    companiesSkippedForTime: companies.length - processed,
+    discoveryDurationMs: deadline.elapsedMs(),
+    concurrency,
     perUser,
     results,
     createdNewsItems: perUser.flatMap((entry) => entry.createdNewsItems),

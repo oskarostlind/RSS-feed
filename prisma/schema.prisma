@@ -70,6 +70,10 @@ model Company {
   userId            String
   createdAt         DateTime           @default(now())
   updatedAt         DateTime           @updatedAt
+  /// När bolaget senast söktes igenom. Morgonkörningen tar äldst först, så att
+  /// inget bolag svälter när tidsbudgeten inte räcker till hela portföljen.
+  /// Null = aldrig sökt, och prioriteras därför högst.
+  lastCheckedAt     DateTime?
   user              User               @relation(fields: [userId], references: [id], onDelete: Cascade)
   newsItems         NewsItem[]
   jobAds            JobAd[]
@@ -77,6 +81,7 @@ model Company {
 
   @@unique([userId, name])
   @@index([userId])
+  @@index([lastCheckedAt])
 }
 
 model NewsItem {

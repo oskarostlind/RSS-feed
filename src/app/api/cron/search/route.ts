@@ -118,6 +118,16 @@ export async function GET(request: Request): Promise<NextResponse> {
       }
     }
 
+    if (result.companiesSkippedForTime > 0) {
+      // Loggas som fel och inte som info: det betyder att bevakningar tyst
+      // hoppades över, vilket är precis den sortens sak som annars upptäcks
+      // först när någon undrar var deras nyheter tog vägen.
+      console.error(
+        `Tidsbudgeten räckte inte till ${result.companiesSkippedForTime} bolag. ` +
+          `Höj DISCOVERY_CONCURRENCY eller dela körningen.`,
+      );
+    }
+
     return NextResponse.json({
       ...result,
       emailsSent: deliveries.filter((delivery) => delivery.sent).length,
