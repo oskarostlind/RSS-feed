@@ -5,7 +5,19 @@ import { redirect } from "next/navigation";
 import { Resend } from "resend";
 import { prisma } from "@/lib/prisma";
 
-const MAGIC_LINK_FROM_EMAIL = "onboarding@resend.dev";
+/**
+ * Avsändarnamnet är inte kosmetika.
+ *
+ * `onboarding@resend.dev` är Resends delade sandlådedomän — samma avsändare som
+ * varje annan gratisapp som aldrig verifierat en domän. Mätning 2026-08-07:
+ * mejlen levererades (Resend rapporterade `delivered`), men hamnade utanför
+ * inkorgen. Utan avsändarnamn står det bara "onboarding" i mejllistan, vilket
+ * varken går att känna igen eller söka på.
+ *
+ * Det här är ett plåster. Den riktiga åtgärden är en verifierad egen domän,
+ * vilket kräver DNS-åtkomst — se avsnitt 6 i PROJECT.md.
+ */
+const MAGIC_LINK_FROM_EMAIL = "Omvärldsbevakare <onboarding@resend.dev>";
 
 function getResendApiKey(): string {
   const apiKey = process.env.RESEND_API_KEY;
@@ -15,6 +27,19 @@ function getResendApiKey(): string {
   }
 
   return apiKey;
+}
+
+function buildMagicLinkEmailText(url: string): string {
+  return [
+    "Logga in på Omvärldsbevakare",
+    "",
+    "Öppna länken nedan för att logga in. Den är giltig i 24 timmar och kan",
+    "bara användas en gång.",
+    "",
+    url,
+    "",
+    "Har du inte begärt någon inloggning kan du bortse från det här mejlet.",
+  ].join("\n");
 }
 
 function buildMagicLinkEmailHtml(url: string): string {
@@ -114,6 +139,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           to: identifier,
           subject: "Din inloggningslänk till Omvärldsbevakare",
           html: buildMagicLinkEmailHtml(url),
+          // Ett mejl med enbart HTML-del ser ut som massutskick för
+          // spamfiltren. En text-del kostar tre rader och tar bort en av de
+          // vanligaste anledningarna till att posten sorteras undan.
+          text: buildMagicLinkEmailText(url),
         });
 
         if (response.error) {

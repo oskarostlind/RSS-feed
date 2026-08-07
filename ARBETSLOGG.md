@@ -3,6 +3,40 @@
 Vad de automatiska körningarna gjort, senast överst. Kort med flit — det här är
 överblicken, inte dokumentationen. Den ligger i `PROJECT.md`.
 
+## 2026-08-07 11:30 — inloggningen
+
+Du rapporterade att inloggningslänken aldrig kom. Felsökt hela kedjan.
+
+**Inget var trasigt.** Resend rapporterade `delivered` för varje
+inloggningsmejl, inklusive dina försök 11:13 och 11:19. Länkarna pekade på rätt
+värdnamn — skyddsnätet för den avklippta `AUTH_URL` gör sitt jobb. Jag hämtade
+din länk från Resend, klistrade in den, och du var inloggad direkt.
+
+**Mejlen kom alltså fram, men inte fram till dig.** De sorterades undan.
+`onboarding@resend.dev` är Resends delade sandlådedomän — samma avsändare som
+varje annan gratisapp som aldrig verifierat en domän — och utan avsändarnamn
+stod det bara "onboarding" i mejllistan.
+
+**Ett falskt spår jag själv la ut:** mitt första försök med länken gav
+`error=Configuration` och ett adapterfel om att `identifier` saknades. Det var
+mitt fel — jag hade trunkerat URL:en till 200 tecken när jag skrev ut den och
+tappat `&email=`. Appen var oskyldig. Värt att komma ihåg nästa gång samma fel
+dyker upp: `Configuration` här betyder oftast en ofullständig länk.
+
+**Byggt:** avsändarnamn `Omvärldsbevakare <onboarding@resend.dev>` på alla
+utskick, textalternativ i inloggningsmejl, morgonmejl och larmmejl (HTML-bara
+mejl poängsätts som massutskick), och ett kvitto på inloggningssidan som säger
+åt dig att titta i skräpposten.
+
+**Ingen av dem löser problemet.** Det gör bara en verifierad egen domän.
+§9.8 är uppgraderad till högsta prioritet av det som återstår.
+
+**Städat:** jag skickade två testmejl till din adress under felsökningen,
+"Leveranstest 1" och "Leveranstest 2". Det andra gick från jjbyggboden.se innan
+du sa till — den domänen rörde jag inte i övrigt och den finns inte i koden.
+
+---
+
 ## 2026-08-07 11:12
 
 **Byggt:** `e0ac825` — baseline-migration `0_init`, genererad ur schemat och

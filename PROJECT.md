@@ -160,9 +160,25 @@ Samma vända rättades en omdirigeringsloop: `pages.signIn` pekade på
 tillbaka till `pages.signIn`. Hela appen var oåtkomlig — knapparna på
 startsidan ledde ingenstans. Numera finns en egen sida på `/login`.
 
-**Mejl går bara fram till kontoägaren.** Avsändaren är `onboarding@resend.dev`,
-och Resends gratisnivå levererar bara till kontots egen adress. Kräver
-verifierad domän innan någon annan kan få mejl.
+**Mejl går bara fram till kontoägaren, och hamnar utanför inkorgen även där.**
+Avsändaren är `onboarding@resend.dev`, Resends delade sandlådedomän. Gratisnivån
+levererar bara till kontots egen adress, så ingen annan kan få mejl alls.
+
+Undersökt 2026-08-07 sedan inloggningen inte gick att använda. Kedjan var hel
+hela vägen: Resend rapporterade `delivered` för varje inloggningsmejl, länkarna
+pekade på rätt värdnamn, och en länk som klistrades in direkt loggade in utan
+problem. **Mejlen nådde alltså fram men inte fram till läsaren** — de sorterades
+undan, vilket är väntat för en avsändare som delas av varje gratisapp som aldrig
+verifierat en domän.
+
+Tre plåster lagda samma dag: avsändarnamn (`Omvärldsbevakare <...>`) så att
+posten går att känna igen och söka på, textalternativ i alla utskick eftersom
+HTML-bara mejl poängsätts som massutskick, och ett kvitto på
+inloggningssidan som säger åt användaren att titta i skräpposten.
+
+**Ingen av dem löser problemet.** Det gör bara en verifierad egen domän, och det
+kräver DNS-åtkomst. Så länge det inte är gjort är inloggningen opålitlig för
+alla utom den som vet var hen ska leta.
 
 **Ingen kostnadskontroll per användare.** Med öppen registrering kan en
 användare lägga in obegränsat många bolag.
@@ -336,7 +352,9 @@ personuppgiftspolicy och rutin för radering innan öppen registrering.
    vilket en automatisk körning inte kan göra. Parsningen är verifierad i
    produktionsmiljön via `/api/debug/import-test`, men själva formuläret har
    ingen människa provat
-8. Verifierad mejldomän i Resend
+8. **Verifierad mejldomän i Resend — högsta prioritet av det som återstår.**
+   Inloggningen är i praktiken trasig utan den: mejlen levereras men hamnar i
+   skräpposten, se avsnitt 6. Kräver en egen domän och DNS-åtkomst
 9. Mät GNews täckning över flera **lokala** bolag och slå av den om bilden
    håller. Noll träffar på Peges i varje mätning, men åtta på Ericsson — se
    avsnitt 7. Beslutet bör inte grundas på testfallet ensamt

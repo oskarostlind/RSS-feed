@@ -13,7 +13,13 @@ import {
   formatErrorMessage,
 } from "@/lib/utils/formatError";
 
-const DEFAULT_FROM_EMAIL = "onboarding@resend.dev";
+/**
+ * Med avsändarnamn, av samma skäl som i `auth.ts`: utan det står det bara
+ * "onboarding" i mejllistan. Mätning 2026-08-07 visade att mejlen levererades
+ * men hamnade utanför inkorgen — `resend.dev` är Resends delade sandlådedomän.
+ * Riktig åtgärd är en verifierad egen domän, se PROJECT.md avsnitt 6.
+ */
+const DEFAULT_FROM_EMAIL = "Omvärldsbevakare <onboarding@resend.dev>";
 
 export type { MorningSummaryJobAdItem, MorningSummaryNewsItem, SourceAlertRow };
 
@@ -49,6 +55,43 @@ function buildMorningSubject(newsCount: number, jobCount: number): string {
   }
 
   return `Morgonsammanfattning – ${parts.join(", ")}`;
+}
+
+function buildMorningSummaryText(
+  newsItems: MorningSummaryNewsItem[],
+  possibleItems: MorningSummaryNewsItem[],
+  jobAds: MorningSummaryJobAdItem[],
+): string {
+  const lines: string[] = ["Morgonsammanfattning", ""];
+
+  if (newsItems.length > 0) {
+    lines.push("NYHETER");
+    for (const item of newsItems) {
+      lines.push(`- ${item.companyName}: ${item.title}`, `  ${item.url}`);
+    }
+    lines.push("");
+  }
+
+  if (jobAds.length > 0) {
+    lines.push("NYA JOBBANNONSER");
+    for (const ad of jobAds) {
+      const where = [ad.occupation, ad.municipality].filter(Boolean).join(", ");
+      lines.push(
+        `- ${ad.companyName}: ${ad.headline}${where ? ` (${where})` : ""}`,
+        `  ${ad.url}`,
+      );
+    }
+    lines.push("");
+  }
+
+  if (possibleItems.length > 0) {
+    lines.push("KANSKE RELEVANT");
+    for (const item of possibleItems) {
+      lines.push(`- ${item.companyName}: ${item.title}`, `  ${item.url}`);
+    }
+  }
+
+  return lines.join("\n");
 }
 
 export class EmailService {
@@ -111,6 +154,9 @@ export class EmailService {
         to: recipient,
         subject,
         react: MorningSummaryEmail({ newsItems, possibleItems, jobAds }),
+        // Textalternativ, av samma skäl som för inloggningsmejlet: ett
+        // HTML-bara mejl ser ut som massutskick för spamfiltren.
+        text: buildMorningSummaryText(newsItems, possibleItems, jobAds),
       });
 
       if (response.error) {
@@ -163,6 +209,11 @@ export class EmailService {
         to: this.adminEmail,
         subject: `Omvärldsbevakare: ${names} levererade inte`,
         react: SourceAlertEmail({ rows, ranAt: new Date() }),
+        text: [
+          "Källvarning från Omvärldsbevakare",
+          "",
+          ...rows.map((row) => `${row.source} [${row.verdict}]: ${row.note}`),
+        ].join("\n"),
       });
 
       if (response.error) {
