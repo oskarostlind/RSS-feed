@@ -1,6 +1,8 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { requestMagicLinkAction } from "@/lib/auth/actions";
+import { resolveSender } from "@/lib/email/sender";
 
 /**
  * Egen inloggningssida.
@@ -17,6 +19,7 @@ interface LoginPageProps {
 
 export default async function LoginPage({ searchParams }: LoginPageProps) {
   const session = await auth();
+  const avsandare = resolveSender();
 
   if (session?.user) {
     redirect("/dashboard");
@@ -75,6 +78,18 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
             Skicka inloggningslänk
           </button>
         </form>
+      
+        <p className="mt-8 text-xs text-zinc-500 dark:text-zinc-400">
+          Genom att logga in godtar du att vi behandlar din mejladress och dina
+          bevakningar enligt vår{" "}
+          <Link
+            href="/integritetspolicy"
+            className="underline underline-offset-4"
+          >
+            integritetspolicy
+          </Link>
+          .
+        </p>
       </main>
     </div>
   );

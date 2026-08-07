@@ -81,7 +81,7 @@ export function MorningSummaryEmail({
           <Container className="mx-auto max-w-[640px] px-4 py-8">
             <Section className="mb-8 text-center">
               <Text className="m-0 mb-2 text-xs font-semibold uppercase tracking-[0.08em] text-zinc-500">
-                Omvärldsbevakare
+                Företagskollen
               </Text>
               <Heading className="m-0 mb-2 text-[28px] font-semibold leading-tight text-zinc-900">
                 Morgonsammanfattning

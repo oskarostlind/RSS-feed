@@ -5,7 +5,7 @@ export default function Home() {
     <div className="flex min-h-full flex-col items-center justify-center bg-zinc-50 px-6 dark:bg-black">
       <main className="w-full max-w-lg rounded-2xl border border-zinc-200 bg-white p-10 text-center shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
         <h1 className="text-3xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
-          Omvärldsbevakare
+          Företagskollen
         </h1>
         <p className="mt-3 text-zinc-600 dark:text-zinc-400">
           MVP för proaktiv bevakning av företagsomnämnanden i svensk nyhetsmedia.

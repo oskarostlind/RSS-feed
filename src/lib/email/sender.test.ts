@@ -5,7 +5,7 @@ import { resolveSender } from "./sender.ts";
 test("utan EMAIL_FROM används sandlådedomänen", () => {
   const sender = resolveSender(undefined);
 
-  assert.equal(sender.from, "Omvärldsbevakare <onboarding@resend.dev>");
+  assert.equal(sender.from, "Företagskollen <onboarding@resend.dev>");
   assert.equal(sender.isVerifiedDomain, false);
 });
 

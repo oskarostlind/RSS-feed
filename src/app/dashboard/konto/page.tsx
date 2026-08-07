@@ -120,6 +120,13 @@ export default async function KontoPage({ searchParams }: KontoPageProps) {
         >
           Tillbaka till inkorgen
         </Link>
+        <span className="mx-2 text-zinc-400">·</span>
+        <Link
+          href="/integritetspolicy"
+          className="text-zinc-500 underline underline-offset-4 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200"
+        >
+          Integritetspolicy
+        </Link>
       </p>
     </main>
   );
