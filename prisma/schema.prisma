@@ -150,3 +150,23 @@ model DiscoveredSource {
   @@unique([companyId, domain])
   @@index([companyId])
 }
+
+/// Ett begärt inloggningsmejl. Finns bara för att kunna räkna dem.
+///
+/// Utan tak kan vem som helst utlösa obegränsat många magiska länkar till
+/// vilken adress som helst — både ett sätt att spamma en tredje part som
+/// aldrig bett om något, och ett sätt att bränna mejlkvoten så att riktiga
+/// användare inte kan logga in.
+///
+/// Egen tabell i stället för att räkna `VerificationToken`: de raderas när de
+/// förbrukas, så de som faktiskt användes hade räknats bort — och det är
+/// precis de legitima försöken.
+model LoginAttempt {
+  id         String   @id @default(cuid())
+  /// Normaliserad mejladress, gemener och trimmad.
+  identifier String
+  createdAt  DateTime @default(now())
+
+  @@index([identifier, createdAt])
+  @@index([createdAt])
+}
