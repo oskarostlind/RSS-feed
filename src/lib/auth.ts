@@ -3,21 +3,20 @@ import NextAuth from "next-auth";
 import Email from "next-auth/providers/email";
 import { redirect } from "next/navigation";
 import { Resend } from "resend";
+import { resolveFromAddress } from "@/lib/email/sender";
 import { prisma } from "@/lib/prisma";
 
 /**
- * Avsändarnamnet är inte kosmetika.
+ * Avsändaren hämtas ur den gemensamma konfigurationen i `email/sender.ts`.
  *
- * `onboarding@resend.dev` är Resends delade sandlådedomän — samma avsändare som
- * varje annan gratisapp som aldrig verifierat en domän. Mätning 2026-08-07:
- * mejlen levererades (Resend rapporterade `delivered`), men hamnade utanför
- * inkorgen. Utan avsändarnamn står det bara "onboarding" i mejllistan, vilket
- * varken går att känna igen eller söka på.
- *
- * Det här är ett plåster. Den riktiga åtgärden är en verifierad egen domän,
- * vilket kräver DNS-åtkomst — se avsnitt 6 i PROJECT.md.
+ * Låg tidigare hårdkodad här och en gång till i `EmailService`. Två ställen
+ * betyder att domänbytet kan göras halvt, och just inloggningsmejlet är det som
+ * absolut inte får bli kvar på sandlådedomänen — det är det enda mejl en ny
+ * användare måste få för att komma in alls.
  */
-const MAGIC_LINK_FROM_EMAIL = "Omvärldsbevakare <onboarding@resend.dev>";
+function magicLinkFrom(): string {
+  return resolveFromAddress();
+}
 
 function getResendApiKey(): string {
   const apiKey = process.env.RESEND_API_KEY;
@@ -131,11 +130,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           pass: process.env.RESEND_API_KEY ?? "unused",
         },
       },
-      from: MAGIC_LINK_FROM_EMAIL,
+      from: magicLinkFrom(),
       sendVerificationRequest: async ({ identifier, url }) => {
         const resend = new Resend(getResendApiKey());
         const response = await resend.emails.send({
-          from: MAGIC_LINK_FROM_EMAIL,
+          from: magicLinkFrom(),
           to: identifier,
           subject: "Din inloggningslänk till Omvärldsbevakare",
           html: buildMagicLinkEmailHtml(url),

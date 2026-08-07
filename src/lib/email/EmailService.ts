@@ -12,14 +12,8 @@ import {
   formatErrorCause,
   formatErrorMessage,
 } from "@/lib/utils/formatError";
+import { resolveFromAddress } from "@/lib/email/sender";
 
-/**
- * Med avsändarnamn, av samma skäl som i `auth.ts`: utan det står det bara
- * "onboarding" i mejllistan. Mätning 2026-08-07 visade att mejlen levererades
- * men hamnade utanför inkorgen — `resend.dev` är Resends delade sandlådedomän.
- * Riktig åtgärd är en verifierad egen domän, se PROJECT.md avsnitt 6.
- */
-const DEFAULT_FROM_EMAIL = "Omvärldsbevakare <onboarding@resend.dev>";
 
 export type { MorningSummaryJobAdItem, MorningSummaryNewsItem, SourceAlertRow };
 
@@ -106,7 +100,7 @@ export class EmailService {
   }) {
     this.resend = new Resend(options.apiKey);
     this.adminEmail = options.adminEmail;
-    this.fromEmail = options.fromEmail ?? DEFAULT_FROM_EMAIL;
+    this.fromEmail = options.fromEmail ?? resolveFromAddress();
   }
 
   static fromEnv(): EmailService {
