@@ -45,6 +45,11 @@ Portföljen är tillbaka till Ericsson och Peges. **Du fick ett skarpt morgonmej
 under mätningen** — tre artiklar, två möjliga, fem jobbannonser. Det var
 avsiktligt, det är beviset för att kedjan håller med tolv bolag.
 
+**Byggt efter mätningen:** `8631975` — §9.11, kurssidor filtreras bort. Matchar
+på sökväg och inte domän, eftersom di.se och investing.com också publicerar
+riktiga nyheter. 54 tester gröna. Verifierat skarpt: Ericsson gick från 108
+relevanta träffar till 107, `created: 0`, `healthy: true`.
+
 **Trasigt när jag slutade:** ingenting.
 
 ---
