@@ -35,9 +35,12 @@ export default async function DashboardLayout({
             Bevakade företag
           </Link>
           <div className="ml-auto flex items-center gap-4">
-            <span className="max-w-[180px] truncate text-xs text-zinc-500 dark:text-zinc-400">
+            <Link
+              href="/dashboard/konto"
+              className="max-w-[180px] truncate text-xs text-zinc-500 underline-offset-4 transition-colors hover:text-zinc-800 hover:underline dark:text-zinc-400 dark:hover:text-zinc-200"
+            >
               {userLabel}
-            </span>
+            </Link>
             <Link
               href="/"
               className="text-sm text-zinc-500 transition-colors hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200"
