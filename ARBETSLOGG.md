@@ -3,6 +3,53 @@
 Vad de automatiska körningarna gjort, senast överst. Kort med flit — det här är
 överblicken, inte dokumentationen. Den ligger i `PROJECT.md`.
 
+## 2026-08-07 14:55 — fas 1 utvärderad mot bevis, tre av fyra
+
+**Byggt:** `0effdf3` — `?summary=1` på `/api/cron/search`. Fulla svaret var
+40 000 tecken med tolv bolag, vilket gjorde den föreskrivna dubbelkörningen dyr
+nog att vilja hoppa över.
+
+**Mätt, inte läst.** §4:s fyra kriterier kontrollerade mot faktiska körningar:
+
+| # | Kriterium | Status |
+|---|---|---|
+| 1 | Känd händelse hittas | uppfyllt |
+| 2 | Mejl kl 07, sju dagar i rad | **ej uppfyllt** |
+| 3 | Inga artiklar äldre än fönstret | uppfyllt — 811 arkiverade, 3 mejlade |
+| 4 | Tio bolag inom tidsgränsen | uppfyllt — 12 bolag, 2,9 s av 45 s |
+
+Kriterium 4 var en uträkning förut, inte en mätning. Nu skarpt mätt: tio
+testbolag inlagda i portföljen, morgonjobbet kört två gånger, testbolagen
+borttagna igen. Marginalen är stor — flaskhalsen är inte tiden per bolag utan
+Vercel Hobbys en körning per dygn.
+
+**Tre nya fynd:**
+
+- **Klockslaget driver.** Cron går på UTC, `0 5 * * *` blir 07:00 svensk tid på
+  sommaren men **06:00 på vintern**. Kravet säger kl 07 året om. Går inte att
+  lösa på Hobby. Jag har **inte** rört schemat — det är ditt beslut, ny §9.12.
+- **Kurssidor mejlas som nyheter.** `Fagerhult AB (FAG)` från investing.com nådde
+  den *säkra* delen av mejlet. Sådana sidor sätter dagens datum varje dygn och
+  passerar tidsfönstret för alltid. Ny §9.11.
+- **Ingen historik finns.** Databasen byttes 2026-08-07 och har bara data från
+  6 augusti. Sju dygn i rad går inte att belägga för något yngre än sju dygn.
+
+**Svaret på frågan:** fas 1 är inte klar och fas 2 är inte nära. Det som
+återstår i fas 1 är drift, inte kod — verifierad mejldomän och sju dygns
+faktisk körning.
+
+**Testdata:** tio bolag (Fläkt Woods, Norra Skog, Hedin Bil, Gnosjö
+Automatsvarvning, Setra Group, Nordic Paper, Ovako, Fagerhult, Beijer Alma,
+Cibes Lift) skapade och borttagna igen, med 817 NewsItem och 21 JobAd.
+Portföljen är tillbaka till Ericsson och Peges. **Du fick ett skarpt morgonmejl
+under mätningen** — tre artiklar, två möjliga, fem jobbannonser. Det var
+avsiktligt, det är beviset för att kedjan håller med tolv bolag.
+
+**Trasigt när jag slutade:** ingenting.
+
+---
+
+
 ## 2026-08-07 14:40 — GNews avstängd, bygget kör migrationerna
 
 **Hälsa:** grön hela passet. Peges-förvärvet hittas, 15 träffar (google-rss 12,

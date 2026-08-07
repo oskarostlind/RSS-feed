@@ -53,6 +53,39 @@ Fas 1 räknas som klar när samtliga stämmer:
 3. Inga artiklar äldre än tidsfönstret når mejlet.
 4. Minst tio bolag kan bevakas samtidigt inom funktionens tidsgräns.
 
+### Status 2026-08-07 — tre av fyra
+
+| # | Kriterium | Status | Bevis |
+|---|---|---|---|
+| 1 | Känd händelse hittas | **Uppfyllt** | Peges-förvärvet hittas i varje mätning, di.se 2026-04-01 |
+| 2 | Mejl kl 07, sju dagar i rad | **Ej uppfyllt** | Se nedan — det enda som återstår |
+| 3 | Inga artiklar äldre än fönstret | **Uppfyllt** | Körning med 12 bolag: 811 artiklar arkiverade, 3 mejlade |
+| 4 | Tio bolag inom tidsgränsen | **Uppfyllt** | 12 bolag på 2,9 s av 45 s budget, `companiesSkippedForTime: 0` |
+
+Kriterium 4 var tidigare en uträkning och inte en mätning. Det är nu mätt
+skarpt: tolv riktiga svenska bolag lades in i portföljen, morgonjobbet kördes
+två gånger, och testbolagen togs bort igen. 937 träffar, 935 överhoppade vid
+andra körningen. **Marginalen är stor** — 2,9 av 45 sekunder betyder att
+flaskhalsen inte är tiden per bolag utan Vercel Hobbys en körning per dygn.
+
+**Varför kriterium 2 inte är uppfyllt, och varför det inte bara är en fråga om
+att vänta sju dagar:**
+
+- **Ingen historik finns.** Databasen byttes ut 2026-08-07 och innehåller bara
+  data från den 6 augusti och framåt. Sju dygn i rad går inte att belägga för
+  något som är yngre än sju dygn.
+- **Klockslaget driver med sommartid.** `vercel.json` har `0 5 * * *`, och
+  Vercels cron går på UTC. Det blir 07:00 svensk tid på sommaren men **06:00 på
+  vintern**. Kravet säger kl 07 året om. Vercel har inget tidszonsstöd, och
+  Hobby tillåter bara en körning per dygn, så det går inte att lösa med två
+  scheman. Antingen accepteras en timmes drift halva året, eller så krävs Pro.
+- **Mejlet når i praktiken bara kontoägaren.** Se avsnitt 6. Ett morgonmejl som
+  bara fungerar för ett konto uppfyller inte kriteriet för en produkt.
+
+Sammantaget: **fas 1 är inte klar, och fas 2 är inte nära.** Det som återstår i
+fas 1 är inte kod utan drift — en verifierad mejldomän och sju dygns faktisk
+körning. Se avsnitt 9.
+
 ### Vilket fel som väger tyngst
 
 **Att missa en riktig nyhet är värre än att släppa igenom skräp.** En missad
@@ -342,6 +375,22 @@ substräng skulle laga just det, men samtidigt missa koncernbolag som
 "Pegesgruppen". Enligt avsnitt 4 väger täckning tyngre, så substräng står kvar
 — men det är en känd falsk positiv, inte en förbisedd.
 
+**Aktiekurssidor tar sig in i mejlet som nyheter.** Körningen med tolv bolag
+2026-08-07 mejlade `Fagerhult AB (FAG)` från `se.investing.com` — en
+kurssida, inte en artikel. Den nådde dessutom den **säkra** delen av mejlet,
+inte "möjliga träffar".
+
+Sådana sidor är värre än vanliga falska positiva: de sätter dagens datum varje
+dygn, så de ser alltid färska ut och passerar tidsfönstret för alltid.
+Dedupliceringen räddar oss från att mejla samma URL två gånger, men varje nytt
+bolag med en kurssida ger en skräprad i första mejlet — och första intrycket är
+det som avgör om någon fortsätter öppna mejlen.
+
+Åtgärden är en spärrlista över domäner som inte är nyhetskällor
+(`investing.com/equities`, aktiekurstjänster, bolagsregisterkataloger). Det är
+inte i konflikt med avvägningen i avsnitt 4 om att hellre släppa igenom skräp:
+en kurssida är inte en tveksam nyhet, den är inte en nyhet alls.
+
 **Upphovsrätt vid vidareförmedling.** Att länka är fritt. Men EU:s
 DSM-direktiv artikel 15 ger presspublicister en närstående rättighet till
 utdrag ur artiklar, och den gäller i svensk rätt. Att i en **kommersiell**
@@ -394,3 +443,13 @@ personuppgiftspolicy och rutin för radering innan öppen registrering.
    standard. Se avsnitt 7
 10. ~~Kostnadstak per **användare**, inte bara per import~~ — **klart
     2026-08-07.** Portföljtak härlett ur körningens kapacitet, se avsnitt 6
+11. **Spärrlista mot domäner som inte är nyhetskällor.** En kurssida från
+    investing.com nådde den säkra delen av morgonmejlet 2026-08-07, se
+    avsnitt 7. Liten åtgärd, direkt synlig i produkten
+12. **Bestäm vad som gäller för klockslaget vintertid.** Cron går på UTC, så
+    `0 5 * * *` blir 06:00 svensk tid när sommartiden upphör. Antingen
+    accepteras driften — och då bör kriterium 2 i avsnitt 4 skrivas om — eller
+    så krävs Vercel Pro. Det är ett beslut, inte en bugg
+13. **Kör sju dygn i rad och belägg det.** Kriterium 2 kan inte bevisas snabbare
+    än sju dygn, och räkningen börjar om varje gång databasen byts. Förutsätter
+    att punkt 8 är löst först, annars mäter vi ett mejl ingen får
