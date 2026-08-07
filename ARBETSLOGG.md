@@ -3,6 +3,55 @@
 Vad de automatiska körningarna gjort, senast överst. Kort med flit — det här är
 överblicken, inte dokumentationen. Den ligger i `PROJECT.md`.
 
+## 2026-08-07 10:42
+
+Tredje passet samma körning.
+
+**Byggt:**
+
+- `01dcaee` + `4b46445` — massimport från `.xlsx` och `.csv` (§9.7). Läsning,
+  normalisering och radvis granskning i första commiten, gränssnittet i andra.
+  Sida på `/dashboard/companies/import`
+- `bf362f9` — självtest på `/api/debug/import-test` som kör filläsningen i
+  produktionsmiljön och kontrollerar mot förväntade värden. 11 av 11 passerar
+- `ed6a3cb` — jobbannonser syns nu på bolagssidan i dashboarden
+- `9b6f0a8` — källarmet mejlas till `ADMIN_EMAIL`, inte bara till loggen
+
+**Ingen ny beroendeinstallation.** Excel-läsningen är en egen minimal zip-läsare
+på åttio rader plus en delmängd av OOXML. Skälet är konkret: `node_modules` i
+repot är byggt för Windows, och ett `npm install` härifrån hade skrivit in
+Linux-binärer i ditt träd. Testfixturen är skriven av openpyxl, alltså av något
+annat än min egen kod — ett zip-arkiv man skrivit själv går att läsa fel på ett
+sätt som är osynligt så länge man bara läser sina egna filer.
+
+**Mätning efter:** 25 enhetstester, 11 produktionskontroller, `tsc` rent.
+Dubbelkörning av cron ger fortsatt `created: 0` och `skipped` lika med antalet
+träffar. `sourceHealth.healthy: true`.
+
+**Gissningar:**
+
+- **Tak på 500 bolag per import och 2 MB per fil.** Inget i målbilden anger
+  någon siffra. Jag valde ett tal som rymmer en normal kundportfölj men stoppar
+  en olycka, och skrev in i §6 att det inte är ett riktigt kostnadstak
+- **`.xls` avvisas i stället för att stödjas.** Det är ett binärt format, inte
+  en zip med XML, och skulle krävt en helt annan läsare. Att låtsas stödja det
+  och sedan misslyckas kryptiskt är sämre än ett besked om att spara om filen
+- **Larmmejlet går till `ADMIN_EMAIL`, inte till användarna.** Ett driftlarm är
+  inte en produktegenskap — en AM ska inte behöva veta vad google-rss är
+
+**Detta har jag inte kunnat testa:** själva uppladdningsformuläret. Det kräver
+inloggning, och en automatisk körning kan inte hämta en magisk länk ur din
+inkorg. Parsningen är verifierad i produktionsmiljön via `/api/debug/import-test`,
+men **du bör ladda upp en riktig kundlista innan du litar på flödet.**
+
+**Blockerat:** oförändrat sedan i morse — registerhändelser kräver
+Bolagsverket-konto, mejldomänen kräver DNS, `AUTH_URL` kräver att du skriver i
+Vercels miljövariabler.
+
+**Trasigt när jag slutade:** ingenting.
+
+---
+
 ## 2026-08-07 10:02
 
 Fortsättning på passet nedan, samma körning.

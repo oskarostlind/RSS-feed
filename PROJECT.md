@@ -83,7 +83,8 @@ Idag går det bara att lägga till ett bolag i taget via ett textfält. Med den
 skala vi siktar på — över 100 bolag — är det ohållbart. En AM har redan sin
 kundlista i Excel eller ett CRM och ska inte behöva knappa in den för hand.
 
-**Massimport från fil** är därför ett krav, inte en bekvämlighet. Kravbilden:
+**Massimport från fil** är **byggd 2026-08-07**, på
+`/dashboard/companies/import`. Kravbilden nedan är uppfylld i sin helhet:
 
 - Tar emot `.xlsx` och `.csv`. Excel är formatet en säljare faktiskt har.
 - Låter användaren peka ut vilken kolumn som innehåller bolagsnamnet, i stället
@@ -95,8 +96,20 @@ kundlista i Excel eller ett CRM och ska inte behöva knappa in den för hand.
   inte blir två bevakningar.
 - Rapporterar per rad vad som gick igenom och vad som hoppades över, med skäl.
 
-Importen bör inte påbörjas innan kö-arkitekturen i avsnitt 6 är på plats — se
-kopplingen där.
+Två saker att veta om implementationen:
+
+**Excel-läsningen har inget bibliotek bakom sig.** `unzip.ts` är en minimal
+zip-läsare på åttio rader, och `parseXlsx.ts` en delmängd av OOXML — sheet,
+delade strängar, inline-strängar. Skälet är att `node_modules` är byggt för
+Windows, så ett `npm install` från en Linux-miljö skriver in inkompatibla
+binärer i samma träd. Delmängden räcker eftersom filerna alltid är skrivna av
+Excel eller ett exportbibliotek. Verifieras i produktionsmiljön av
+`/api/debug/import-test`, som kontrollerar mot förväntade värden och svarar 500
+när något gått sönder.
+
+**Taket är 500 bolag per import och 2 MB per fil.** Inte tekniskt utan
+ekonomiskt — varje bolag är fyra utgående anrop varje morgon, för alltid. Det
+är det första kostnadstak som faktiskt finns i tjänsten; se avsnitt 6.
 
 ## 6. Vad som måste byggas om innan fas 2
 
@@ -152,7 +165,13 @@ och Resends gratisnivå levererar bara till kontots egen adress. Kräver
 verifierad domän innan någon annan kan få mejl.
 
 **Ingen kostnadskontroll per användare.** Med öppen registrering kan en
-användare lägga in obegränsat många bolag. Behöver tak och köhantering.
+användare lägga in obegränsat många bolag.
+
+**Delvis åtgärdat 2026-08-07:** massimporten har ett tak på 500 bolag per
+uppladdning och 2 MB per fil. Det hindrar en enskild olycka men inte tio
+uppladdningar i rad, och det finns fortfarande inget tak på hur många bolag ett
+konto totalt kan bevaka. Ett riktigt tak hör ihop med kön: taket ska vara det
+antal bolag en morgonkörning faktiskt hinner med.
 
 **Schemat är inte reproducerbart.** Det finns ingen `prisma/migrations`-katalog
 — tabellerna har bara någonsin skapats med `prisma db push` från en laptop. Och
@@ -284,9 +303,15 @@ personuppgiftspolicy och rutin för radering innan öppen registrering.
 5. ~~Kö-arkitektur för 100+ bolag~~ — **delvis klart 2026-08-07.**
    Parallellisering, tidsbudget och markör, se avsnitt 6. Fan-out återstår
 6. ~~Larm när en källa tystnar~~ — **klart 2026-08-07.** Härlett ur körningen,
-   tabelltestat, se avsnitt 7. Larmet syns bara i Vercels loggar; att mejla vid
-   `silent` återstår
-7. Massimport av bolag från `.xlsx` och `.csv` — se avsnitt 5
+   tabelltestat, och mejlas till `ADMIN_EMAIL` vid `silent` eller `failing`.
+   Se avsnitt 7
+7. ~~Massimport av bolag från `.xlsx` och `.csv`~~ — **klart 2026-08-07**, se
+   avsnitt 5. **Ej testad med en riktig uppladdning** — det kräver inloggning,
+   vilket en automatisk körning inte kan göra. Parsningen är verifierad i
+   produktionsmiljön via `/api/debug/import-test`, men själva formuläret har
+   ingen människa provat
 8. Verifierad mejldomän i Resend
 9. Överväg att slå av GNews. Noll träffar i varje mätning, ett anrop per bolag,
    och den enda källa som kan slå i en kvot — se avsnitt 7
+10. Kostnadstak per **användare**, inte bara per import. Importtaket hindrar en
+    enskild uppladdning, men inte tio uppladdningar i rad
