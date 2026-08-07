@@ -117,6 +117,19 @@ kan ladda upp en Excel med 150 rader spricker morgonkörningen på tidsgränsen.
 Bygger vi importen först får vi en funktion som omedelbart sänker systemet. Kön
 ska därför på plats först.
 
+**`AUTH_URL` i produktionsmiljön är felaktig.** Värdet är
+`https://rss-feed-lime.vercel.` — en avklippt inklistring som tappat `app`.
+Auth.js bygger både omdirigeringar och den magiska länken ur det, så
+inloggningsmejlen pekade på en adress som inte finns. Koden kastar numera en
+`AUTH_URL` vars värdnamn slutar med punkt och härleder adressen ur requesten i
+stället, men **variabeln bör rättas eller tas bort i Vercel** — skyddsnätet
+täcker just detta felmönster, inte alla.
+
+Samma vända rättades en omdirigeringsloop: `pages.signIn` pekade på
+`/api/auth/signin`, alltså Auth.js egen hanterare, som i sin tur skickar
+tillbaka till `pages.signIn`. Hela appen var oåtkomlig — knapparna på
+startsidan ledde ingenstans. Numera finns en egen sida på `/login`.
+
 **Mejl går bara fram till kontoägaren.** Avsändaren är `onboarding@resend.dev`,
 och Resends gratisnivå levererar bara till kontots egen adress. Kräver
 verifierad domän innan någon annan kan få mejl.
