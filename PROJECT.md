@@ -182,11 +182,12 @@ bolag", så standardinställningen ligger precis på gränsen för den produkt v
 säger oss bygga. En riktig portfölj kräver antingen högre parallellitet eller
 fan-out.
 
-**Schemat är inte reproducerbart.** Det finns ingen `prisma/migrations`-katalog
-— tabellerna har bara någonsin skapats med `prisma db push` från en laptop. Och
-byggkommandot är `prisma generate && next build`, som genererar klienten men
-aldrig rör databasen. Ingen deploy kan alltså återställa schemat, och ingen kan
-se i repot vilket schema produktionen faktiskt har.
+**Schemat återställs inte av en deploy.** Fram till 2026-08-07 fanns ingen
+`prisma/migrations`-katalog alls — tabellerna hade bara någonsin skapats med
+`prisma db push` från en laptop. Och byggkommandot är `prisma generate && next
+build`, som genererar klienten men aldrig rör databasen. Ingen deploy kunde
+alltså återställa schemat, och ingen kunde se i repot vilket schema produktionen
+faktiskt hade.
 
 Det var inte teoretiskt: 2026-08-07 svarade `/api/cron/search` med 500 och
 `P2021 — The table public.Company does not exist`. Orsaken var att
@@ -194,11 +195,21 @@ Det var inte teoretiskt: 2026-08-07 svarade `/api/cron/search` med 500 och
 schemat. Åtgärdat samma dag med `prisma db push` mot `neondb`, som då bara
 innehöll en tom `_prisma_migrations`-tabell — ingen data gick förlorad.
 
-**Grundproblemet kvarstår dock:** nästa gång databasen byts ut händer exakt
-samma sak, tyst, och upptäcks först när någon undrar var morgonmejlet tog
-vägen. Att lägga `prisma migrate deploy` i byggkommandot kräver först att
-schemat får en riktig migrationshistorik — `db push` skriver ingen. Det är
-nästa strukturella skuld att betala av.
+**Halva grundproblemet är löst 2026-08-07.** Schemat har nu en
+migrationshistorik: `prisma/migrations/0_init` är en baseline genererad ur
+schemat och markerad som körd i produktionsdatabasen. Två saker följer av det —
+schemat går att läsa ut ur repot, och en ny databas kan få samma schema utan att
+någon minns vilka `db push` som gjordes när.
+
+**Andra halvan återstår, och den är den som räknas.** Byggkommandot är
+fortfarande `prisma generate && next build` och rör alltså aldrig databasen.
+Nästa gång `DATABASE_URL` pekar på en tom databas händer exakt samma sak igen.
+Ändringen är att lägga `prisma migrate deploy &&` först i byggkommandot;
+baseline-migrationen var förutsättningen och finns nu.
+
+Steget är medvetet inte taget automatiskt. Det ändrar vad **varje** deploy gör
+mot produktionsdatabasen, och det beslutet bör fattas med öppna ögon.
+`prisma/migrations/README.md` beskriver exakt vad som ska ändras.
 
 ## 7. Risker som är billigare att veta om nu
 
