@@ -3,6 +3,62 @@
 Vad de automatiska körningarna gjort, senast överst. Kort med flit — det här är
 överblicken, inte dokumentationen. Den ligger i `PROJECT.md`.
 
+## 2026-08-07 15:25 — fas 2 påbörjad
+
+Du sa: skit i domänen tills vidare, fortsätt med fas 2. **En invändning först,
+och den står kvar:** öppen registrering kan byggas färdig utan mejldomänen men
+inte släppas utan den. Nya användare loggar in med magisk länk, och utan
+verifierad domän kommer ingen ny användare in över huvud taget.
+
+Allt annat i fas 2 gick att bygga. Tre av fem krav är nu avklarade.
+
+**Byggt:**
+
+- `5b8acda` — **GDPR-radering och export** på `/dashboard/konto`. Sidan visar
+  räknat vad som lagras, låter dig ladda ner allt som JSON (artikel 20) och
+  radera kontot med allt innehåll (artikel 17).
+- `7cba4ae` — **tak för inloggningsmejl.** Fem per adress och timme, hundra
+  totalt. Utan det är formuläret en spamkanon mot tredje part och ett sätt att
+  bränna mejlkvoten.
+
+**Granskat, inget byggt:** hyresgästisoleringen. Samtliga 23 Prisma-frågor
+utanför `generated/` är scopade på `userId`, direkt eller via
+`company: { userId }`. **Ingen läcka.** Det är ett negativt resultat, men det
+var det som måste kontrolleras före allt annat i fas 2 — en oscopad fråga är ett
+dataläckage i samma sekund som en andra användare finns.
+
+**Gissningar:**
+
+- *Taket per adress ger samma kvitto som vid framgång, inte ett felmeddelande.*
+  Den som spammar någon annans adress ska inte få veta att spärren finns och
+  börja rotera adresser. Nackdelen: en legitim användare som slår i taket får
+  inget besked om varför. Jag bedömde att den redan har fem mejl i inkorgen.
+- *Egen tabell `LoginAttempt` i stället för att räkna `VerificationToken`.*
+  De senare raderas när de förbrukas, alltså räknas just de legitima försöken
+  bort. Kostar en tabell och en migration.
+
+**Två saker som gick rätt av sig själva:**
+
+- Migrationen för `LoginAttempt` kördes **automatiskt av bygget** 15:20:33. Det
+  är första kvittot på att `977c481` gör vad den ska — jag skrev bara SQL-filen
+  och pushade.
+- Testet av taket avslöjade en designmiss: policyn låg i samma modul som
+  Prisma-klienten och gick därför inte att köra utan `DATABASE_URL`. Delad i
+  `loginRateLimitPolicy.ts`. En regel som bara kan provas mot en riktig databas
+  blir i praktiken oprovad, och ett tak vill man per definition inte utlösa
+  skarpt.
+
+**Blockerat:** verifierad mejldomän (DNS) — och den blockerar nu hela fas 2,
+inte bara inloggningen.
+
+**Kvar i fas 2:** personuppgiftspolicy (§9.17, text inte kod), och själva
+öppnandet av registreringen (§9.18).
+
+**Trasigt när jag slutade:** ingenting. 60 tester gröna, morgonjobbet friskt,
+`created: 0`.
+
+---
+
 ## 2026-08-07 14:55 — fas 1 utvärderad mot bevis, tre av fyra
 
 **Byggt:** `0effdf3` — `?summary=1` på `/api/cron/search`. Fulla svaret var

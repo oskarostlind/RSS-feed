@@ -40,6 +40,42 @@ Målet är att bevisa att täckningen håller och att morgonmejlet är värt att
 bevakningar. Kräver flerhyresgästmodell, kostnadstak per användare,
 missbruksskydd, verifierad mejldomän och GDPR-hantering.
 
+Status 2026-08-07:
+
+| Krav | Status |
+|---|---|
+| Flerhyresgästmodell | **Granskad, ingen läcka.** Samtliga Prisma-frågor utanför `generated/` är scopade på `userId`, direkt eller via `company: { userId }` |
+| Kostnadstak per användare | **Byggt.** Portföljtak härlett ur körningens kapacitet, se avsnitt 6 |
+| Missbruksskydd | **Byggt.** Tak för inloggningsmejl, se nedan |
+| GDPR-hantering | **Delvis.** Radering och export byggda på `/dashboard/konto`. Personuppgiftspolicy återstår |
+| Verifierad mejldomän | **Blockerad.** Kräver DNS-åtkomst |
+
+**Öppen registrering kan byggas färdig utan mejldomänen, men inte släppas utan
+den.** Nya användare loggar in med magisk länk. Utan verifierad domän hamnar
+den i skräpposten eller kastas — se avsnitt 6 — och då kan ingen ny användare
+komma in över huvud taget. Det är inte en detalj att lösa sist; det är
+förutsättningen för att fas 2 ska betyda något.
+
+**Missbruksskydd på inloggningen.** Utan tak är formuläret två saker på en
+gång: ett sätt att spamma en tredje part som aldrig bett om något, och ett sätt
+att bränna mejlkvoten så att riktiga användare inte kan logga in. Två tak
+gäller: fem per adress och timme, hundra totalt per timme.
+
+Taket per adress svarar med **samma kvitto som vid framgång**. Den som spammar
+någon annans adress ska inte få veta att spärren finns och börja rotera
+adresser, och den som träffas legitimt har redan fått fem mejl den senaste
+timmen. Det globala taket ger däremot ett ärligt felmeddelande — det är ett
+driftläge, inte något användaren gjort.
+
+**GDPR: radering och export.** `/dashboard/konto` visar räknat vad tjänsten
+lagrar, låter användaren ladda ner allt som JSON (artikel 20) och radera kontot
+med allt innehåll (artikel 17). Raderingen förlitar sig på kaskaderna i schemat
+i stället för en handskriven raderingsordning, eftersom en sådan ordning glöms
+bort när en tabell läggs till — och kvarlämnad persondata är då en tyst bugg.
+
+**Kvar för GDPR:** personuppgiftspolicy. Den är text, inte kod, men den ska
+finnas innan någon annan än du skapar konto.
+
 **Fas 3 — betalning.** Utanför nuvarande planering.
 
 ## 4. Så vet vi att vi lyckats
@@ -400,8 +436,11 @@ det nödvändigtvis är ett hinder, utan för att det är dyrt att upptäcka sen
 Jag är inte jurist och detta är ingen juridisk rådgivning.
 
 **GDPR.** Vi lagrar mejladresser och bevakningslistor. Bevakningslistan avslöjar
-vilka kunder en säljare jobbar mot, vilket kan vara affärskänsligt. Kräver
-personuppgiftspolicy och rutin för radering innan öppen registrering.
+vilka kunder en säljare jobbar mot, vilket kan vara affärskänsligt.
+
+**Rutinen för radering och export är byggd 2026-08-07**, se avsnitt 3.
+**Personuppgiftspolicyn återstår** och måste finnas innan någon annan än
+kontoägaren skapar konto.
 
 ## 8. Uttalade icke-mål
 
@@ -453,3 +492,17 @@ personuppgiftspolicy och rutin för radering innan öppen registrering.
 13. **Kör sju dygn i rad och belägg det.** Kriterium 2 kan inte bevisas snabbare
     än sju dygn, och räkningen börjar om varje gång databasen byts. Förutsätter
     att punkt 8 är löst först, annars mäter vi ett mejl ingen får
+
+### Fas 2
+
+14. ~~Granska hyresgästisoleringen~~ — **klart 2026-08-07.** Ingen läcka, se
+    avsnitt 3
+15. ~~Missbruksskydd på inloggningen~~ — **klart 2026-08-07.** Tak per adress
+    och globalt, se avsnitt 3
+16. ~~GDPR: radering och export av egen data~~ — **klart 2026-08-07.**
+    `/dashboard/konto`
+17. **Personuppgiftspolicy.** Sista GDPR-kravet före öppen registrering. Text,
+    inte kod
+18. **Öppna registreringen.** Idag finns ingen spärr i koden mot att nya konton
+    skapas — Auth.js skapar användaren vid första magiska länken. Innan det får
+    ske skarpt måste punkt 8 och 17 vara lösta
