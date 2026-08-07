@@ -34,6 +34,10 @@ function logSourceHealth(health: SourceHealthReport): void {
   for (const source of health.sources) {
     if (source.verdict === "silent" || source.verdict === "failing") {
       console.error(`KÄLLA ${source.source} [${source.verdict}]: ${source.note}`);
+    } else if (source.verdict === "throttled") {
+      // Warn och inte error: åtgärdbart av oss, och bevakningen ligger inte
+      // nere. Skulle det loggas som fel drunknar de riktiga larmen.
+      console.warn(`KÄLLA ${source.source} [strypt]: ${source.note}`);
     }
   }
 

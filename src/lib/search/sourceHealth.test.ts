@@ -22,6 +22,7 @@ function tally(
   companiesWithHits: number,
   totalHits: number,
   failures = 0,
+  throttled = 0,
 ): SourceTally {
   return {
     source,
@@ -29,6 +30,7 @@ function tally(
     companiesWithHits,
     totalHits,
     failures,
+    throttled,
   };
 }
 
@@ -80,5 +82,25 @@ test("enstaka fel sänker inte en källa som annars levererar", () => {
   const report = assessSourceHealth([tally("google-rss", 10, 8, 80, 2)]);
 
   assert.equal(report.healthy, true);
+  assert.equal(report.sources[0].verdict, "healthy");
+});
+
+test("429 rapporteras som strypning, inte som haveri", () => {
+  // Upptäckt i produktion 2026-08-07: parallelliseringen gjorde att GNews
+  // gratisnivå svarade 429, och larmet kallade det "failing". En strypt källa
+  // lever — problemet är vår takt, inte deras drift.
+  const report = assessSourceHealth([
+    tally("google-rss", 2, 2, 112),
+    tally("gnews", 2, 0, 0, 0, 1),
+  ]);
+
+  assert.deepEqual(report.throttled, ["gnews"]);
+  assert.deepEqual(report.failing, []);
+  assert.equal(report.healthy, true);
+});
+
+test("strypning döljer inte en källa som ändå levererar", () => {
+  const report = assessSourceHealth([tally("google-rss", 10, 9, 90, 0, 1)]);
+
   assert.equal(report.sources[0].verdict, "healthy");
 });

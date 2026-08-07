@@ -27,6 +27,12 @@ export interface SourceTally {
   totalHits: number;
   /** Antal bolag där källan kastade fel. */
   failures: number;
+  /**
+   * Antal bolag där källan svarade 429. Räknas separat från `failures`: en
+   * strypt källa fungerar, vi frågar bara för fort. Slås de ihop larmar en
+   * kvotgräns som om tjänsten vore nere.
+   */
+  throttled: number;
 }
 
 export type SourceVerdict =
@@ -35,6 +41,8 @@ export type SourceVerdict =
   | "silent"
   /** Kastade fel för minst hälften av bolagen. */
   | "failing"
+  /** Svarade 429. Källan lever, vi frågar för fort. */
+  | "throttled"
   /** Kördes inte, eller kördes bara mot bolag som ingen källa hittade något om. */
   | "inconclusive";
 
@@ -62,6 +70,18 @@ function judge(tally: SourceTally, portfolioHadHits: boolean): SourceHealth {
       ...tally,
       verdict: "inconclusive",
       note: "Källan kördes inte i den här körningen.",
+    };
+  }
+
+  // Strypning bedöms före haveri. En källa som svarar 429 svarar — problemet
+  // ligger hos oss, i takten, inte hos den.
+  if (tally.throttled > 0 && tally.companiesWithHits === 0) {
+    return {
+      ...tally,
+      verdict: "throttled",
+      note:
+        `Svarade 429 för ${tally.throttled} av ${tally.companiesQueried} bolag. ` +
+        `Sänk DISCOVERY_CONCURRENCY eller kontrollera kvoten.`,
     };
   }
 
@@ -114,6 +134,8 @@ export interface SourceHealthReport {
   silent: SourceLabel[];
   /** Källor som är nere på riktigt. */
   failing: SourceLabel[];
+  /** Källor som stryper oss. Rapporteras men väcker ingen. */
+  throttled: SourceLabel[];
   healthy: boolean;
 }
 
@@ -132,11 +154,17 @@ export function assessSourceHealth(
   const failing = sources
     .filter((source) => source.verdict === "failing")
     .map((source) => source.source);
+  const throttled = sources
+    .filter((source) => source.verdict === "throttled")
+    .map((source) => source.source);
 
   return {
     sources,
     silent,
     failing,
+    throttled,
+    // Strypning räknas inte som ohälsa. Den är åtgärdbar av oss och betyder
+    // inte att bevakningen ligger nere.
     healthy: silent.length === 0 && failing.length === 0,
   };
 }
@@ -145,7 +173,7 @@ export function assessSourceHealth(
 export function tallyCompanyOutcome(
   totals: Map<SourceLabel, SourceTally>,
   source: SourceLabel,
-  outcome: { hits: number; ok: boolean },
+  outcome: { hits: number; ok: boolean; throttled?: boolean },
 ): void {
   const current = totals.get(source) ?? {
     source,
@@ -153,13 +181,18 @@ export function tallyCompanyOutcome(
     companiesWithHits: 0,
     totalHits: 0,
     failures: 0,
+    throttled: 0,
   };
+
+  const wasThrottled = outcome.throttled === true;
 
   totals.set(source, {
     source,
     companiesQueried: current.companiesQueried + 1,
     companiesWithHits: current.companiesWithHits + (outcome.hits > 0 ? 1 : 0),
     totalHits: current.totalHits + outcome.hits,
-    failures: current.failures + (outcome.ok ? 0 : 1),
+    // En strypning är inte ett haveri och ska inte räknas som ett.
+    failures: current.failures + (outcome.ok || wasThrottled ? 0 : 1),
+    throttled: current.throttled + (wasThrottled ? 1 : 0),
   });
 }

@@ -9,7 +9,7 @@ import { persistSearchHitsAsPending } from "@/lib/news/persistSearchHits";
 import { splitByRecency } from "@/lib/search/recency";
 import { filterAndRankHits } from "@/lib/search/relevance";
 import { RssFeedService } from "@/lib/search/RssFeedService";
-import { SearchService } from "@/lib/search/SearchService";
+import { SearchService, SearchServiceError } from "@/lib/search/SearchService";
 import type { SourceLabel } from "@/lib/search/sourceHealth";
 import type { SearchHit } from "@/lib/search/types";
 
@@ -18,6 +18,8 @@ export interface CompanySourceOutcome {
   source: SourceLabel;
   hits: number;
   ok: boolean;
+  /** Sant vid HTTP 429 — källan lever, vi frågade för fort. */
+  throttled: boolean;
 }
 
 export interface CompanyDiscoveryResult {
@@ -70,13 +72,27 @@ async function collectSafely(
   label: string,
   companyName: string,
   run: () => Promise<SearchHit[]>,
-): Promise<{ hits: SearchHit[]; ok: boolean }> {
+): Promise<{ hits: SearchHit[]; ok: boolean; throttled: boolean }> {
   try {
-    return { hits: await run(), ok: true };
+    return { hits: await run(), ok: true, throttled: false };
   } catch (error) {
     console.error(`${label} failed for "${companyName}":`, error);
-    return { hits: [], ok: false };
+
+    return { hits: [], ok: false, throttled: isRateLimited(error) };
   }
+}
+
+/**
+ * HTTP 429 betyder att källan lever och att vi frågar för fort — inte att den
+ * är nere. Skillnaden avgör om larmet ska väcka någon eller bara noteras.
+ *
+ * Blev akut i och med parallelliseringen: fem bolag samtidigt är fem samtidiga
+ * GNews-anrop, och gratisnivån stryper långt under det.
+ */
+function isRateLimited(error: unknown): boolean {
+  return (
+    error instanceof SearchServiceError && error.httpStatus === 429
+  );
 }
 
 /**
@@ -132,14 +148,21 @@ export async function runCompanyDiscovery(
         : "bing-rss") as SourceLabel,
       hits: outcome.hits.length,
       ok: outcome.ok,
+      throttled: false,
     })),
-    { source: "gnews", hits: gnewsHits.length, ok: gnews.ok },
+    {
+      source: "gnews",
+      hits: gnewsHits.length,
+      ok: gnews.ok,
+      throttled: gnews.throttled,
+    },
     ...(jobTechService
       ? [
           {
             source: "jobtech" as SourceLabel,
             hits: jobResult.found,
             ok: jobResult.ok,
+            throttled: false,
           },
         ]
       : []),
