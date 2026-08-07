@@ -1,4 +1,7 @@
-import { stripLegalSuffix } from "@/lib/search/companyQuery";
+import {
+  significantNameTokens,
+  stripLegalSuffix,
+} from "@/lib/search/companyQuery";
 
 /**
  * Normalisering av bolagsnamn inför import.
@@ -67,12 +70,17 @@ export function looksLikeHeaderOrTotal(name: string): boolean {
 }
 
 /**
- * Ett bolagsnamn måste ha minst två tecken som är bokstäver eller siffror.
+ * Ett bolagsnamn måste innehålla minst ett ord som sökningen kan använda.
+ *
+ * Kravet ställs mot `significantNameTokens` och inte mot strängens längd, av
+ * den enkla anledningen att det är den funktionen sökningen själv använder. Ett
+ * namn som består enbart av bolagsform och stoppord — "AB", "och", "i" — ger
+ * noll användbara token, och en bevakning på ett sådant namn kan aldrig ge en
+ * meningsfull träff. Den skulle bara kosta fyra nätverksanrop varje morgon.
+ *
  * Rena skiljetecken, ensamma bindestreck och "-" som platshållare för tomt
- * förekommer i exporter och ska inte bli bevakningar.
+ * förekommer i exporter och fångas av samma villkor.
  */
 export function isPlausibleCompanyName(name: string): boolean {
-  const key = companyMatchKey(name);
-
-  return key.length >= 2 && /[\p{L}]/u.test(key);
+  return significantNameTokens(cleanImportedName(name)).length > 0;
 }

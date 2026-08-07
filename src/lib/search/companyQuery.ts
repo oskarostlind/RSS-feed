@@ -1,5 +1,11 @@
+/**
+ * `\s+|^` och inte bara `\s+`: annars strippas inte bolagsformen när den är
+ * hela namnet. En importrad med bara "AB" blev då en bevakning vars sökfråga
+ * var `"AB"` — en fras som träffar i stort sett varje svensk artikel, varje
+ * morgon, för alltid.
+ */
 const LEGAL_SUFFIX_PATTERN =
-  /\s+(AB|HB|KB|AB\s*\(publ\)|Aktiebolag|Handelsbolag|Kommanditbolag)\s*$/gi;
+  /(\s+|^)(AB|HB|KB|AB\s*\(publ\)|Aktiebolag|Handelsbolag|Kommanditbolag)\s*$/gi;
 
 /**
  * Ord som är för generiska för att ensamma bevisa att en artikel handlar om
