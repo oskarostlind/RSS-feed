@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { addCompany } from "@/lib/companies/actions";
 
 interface AddCompanyFormProps {
@@ -7,9 +8,17 @@ interface AddCompanyFormProps {
 export function AddCompanyForm({ errorMessage }: AddCompanyFormProps) {
   return (
     <section className="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
-      <h2 className="mb-4 text-lg font-semibold text-zinc-900 dark:text-zinc-50">
-        Lägg till företag
-      </h2>
+      <div className="mb-4 flex items-baseline justify-between gap-4">
+        <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">
+          Lägg till företag
+        </h2>
+        <Link
+          href="/dashboard/companies/import"
+          className="text-sm font-medium text-zinc-600 underline transition-colors hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
+        >
+          Importera från fil
+        </Link>
+      </div>
 
       {errorMessage ? (
         <p
