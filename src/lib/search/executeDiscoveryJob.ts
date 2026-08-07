@@ -1,4 +1,6 @@
 import type { MorningSummaryNewsItem } from "@/lib/email/EmailService";
+import { JobTechService } from "@/lib/jobs/JobTechService";
+import type { MorningSummaryJobAd } from "@/lib/jobs/runCompanyJobSearch";
 import { prisma } from "@/lib/prisma";
 import { resolveWindowDays } from "@/lib/search/recency";
 import { RssFeedService } from "@/lib/search/RssFeedService";
@@ -17,6 +19,7 @@ export interface UserDiscoveryResult {
   results: CompanyDiscoveryResult[];
   createdNewsItems: MorningSummaryNewsItem[];
   possibleNewsItems: MorningSummaryNewsItem[];
+  createdJobAds: MorningSummaryJobAd[];
 }
 
 export interface DiscoveryJobResult {
@@ -26,6 +29,8 @@ export interface DiscoveryJobResult {
   windowDays: number;
   /** Nya artiklar som sparades men var för gamla för att mejlas. */
   archivedNewsItems: number;
+  /** Nya jobbannonser inom fönstret, summerat över alla bolag. */
+  createdJobAdCount: number;
   perUser: UserDiscoveryResult[];
   results: CompanyDiscoveryResult[];
   createdNewsItems: MorningSummaryNewsItem[];
@@ -43,6 +48,16 @@ function isDeliverableEmail(email: string): boolean {
   const domain = email.split("@")[1]?.toLowerCase() ?? "";
 
   return !["localhost", "example.com", "test", "invalid"].includes(domain);
+}
+
+/**
+ * JobTech-anropet är ett extra utgående anrop per bolag, alltså direkt
+ * tidskostnad i en körning som redan har 60 sekunder att röra sig på. Nödbroms
+ * via `JOBTECH_ENABLED=false` så att källan går att stänga av utan att deploya
+ * om, ifall den skulle visa sig sänka morgonkörningen.
+ */
+function isJobTechEnabled(): boolean {
+  return process.env.JOBTECH_ENABLED?.toLowerCase() !== "false";
 }
 
 export async function executeDiscoveryJob(
@@ -67,6 +82,7 @@ export async function executeDiscoveryJob(
 
   const searchService = SearchService.fromEnv();
   const rssFeedService = new RssFeedService();
+  const jobTechService = isJobTechEnabled() ? new JobTechService() : null;
 
   const byUser = new Map<string, UserDiscoveryResult>();
 
@@ -76,6 +92,7 @@ export async function executeDiscoveryJob(
       company.name,
       searchService,
       rssFeedService,
+      jobTechService,
     );
 
     let entry = byUser.get(company.userId);
@@ -88,6 +105,7 @@ export async function executeDiscoveryJob(
         results: [],
         createdNewsItems: [],
         possibleNewsItems: [],
+        createdJobAds: [],
       };
       byUser.set(company.userId, entry);
     }
@@ -95,6 +113,7 @@ export async function executeDiscoveryJob(
     entry.results.push(result);
     entry.createdNewsItems.push(...result.createdItems);
     entry.possibleNewsItems.push(...result.createdPossibleItems);
+    entry.createdJobAds.push(...result.jobs.createdItems);
   }
 
   const perUser = [...byUser.values()];
@@ -106,6 +125,10 @@ export async function executeDiscoveryJob(
     windowDays: resolveWindowDays(),
     archivedNewsItems: results.reduce(
       (sum, result) => sum + result.archived,
+      0,
+    ),
+    createdJobAdCount: perUser.reduce(
+      (sum, entry) => sum + entry.createdJobAds.length,
       0,
     ),
     perUser,

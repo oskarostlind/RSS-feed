@@ -1,6 +1,7 @@
 import { Resend } from "resend";
 import {
   MorningSummaryEmail,
+  type MorningSummaryJobAdItem,
   type MorningSummaryNewsItem,
 } from "@/emails/MorningSummaryEmail";
 import {
@@ -10,7 +11,7 @@ import {
 
 const DEFAULT_FROM_EMAIL = "onboarding@resend.dev";
 
-export type { MorningSummaryNewsItem };
+export type { MorningSummaryJobAdItem, MorningSummaryNewsItem };
 
 export interface SendMorningSummaryResult {
   id: string;
@@ -24,6 +25,26 @@ export class EmailServiceError extends Error {
     this.name = "EmailServiceError";
     this.cause = options?.cause;
   }
+}
+
+/**
+ * Ämnesraden avgör om mejlet öppnas. Den ska därför säga vad som faktiskt
+ * finns i det — inte "sammanfattning" när det bara är en jobbannons.
+ */
+function buildMorningSubject(newsCount: number, jobCount: number): string {
+  const parts: string[] = [];
+
+  if (newsCount > 0) {
+    parts.push(newsCount === 1 ? "1 ny artikel" : `${newsCount} nya artiklar`);
+  }
+
+  if (jobCount > 0) {
+    parts.push(
+      jobCount === 1 ? "1 ny jobbannons" : `${jobCount} nya jobbannonser`,
+    );
+  }
+
+  return `Morgonsammanfattning – ${parts.join(", ")}`;
 }
 
 export class EmailService {
@@ -60,28 +81,32 @@ export class EmailService {
 
   async sendMorningSummary(
     newsItems: MorningSummaryNewsItem[],
-    options?: { to?: string; possibleItems?: MorningSummaryNewsItem[] },
+    options?: {
+      to?: string;
+      possibleItems?: MorningSummaryNewsItem[];
+      jobAds?: MorningSummaryJobAdItem[];
+    },
   ): Promise<SendMorningSummaryResult> {
-    if (newsItems.length === 0) {
+    const possibleItems = options?.possibleItems ?? [];
+    const jobAds = options?.jobAds ?? [];
+
+    // En morgon utan artiklar men med nya jobbannonser är fortfarande värd ett
+    // mejl — rekryteringen är hela poängen med den källan.
+    if (newsItems.length === 0 && jobAds.length === 0) {
       throw new EmailServiceError(
-        "sendMorningSummary requires at least one news item",
+        "sendMorningSummary requires at least one news item or job ad",
       );
     }
 
     const recipient = options?.to ?? this.adminEmail;
-    const possibleItems = options?.possibleItems ?? [];
-
-    const subject =
-      newsItems.length === 1
-        ? "Morgonsammanfattning – 1 ny artikel"
-        : `Morgonsammanfattning – ${newsItems.length} nya artiklar`;
+    const subject = buildMorningSubject(newsItems.length, jobAds.length);
 
     try {
       const response = await this.resend.emails.send({
         from: this.fromEmail,
         to: recipient,
         subject,
-        react: MorningSummaryEmail({ newsItems, possibleItems }),
+        react: MorningSummaryEmail({ newsItems, possibleItems, jobAds }),
       });
 
       if (response.error) {

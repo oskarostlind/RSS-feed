@@ -22,6 +22,17 @@ export interface MorningSummaryNewsItem {
   publishedAt: Date | null;
 }
 
+export interface MorningSummaryJobAdItem {
+  id: string;
+  headline: string;
+  employerName: string;
+  occupation: string | null;
+  municipality: string | null;
+  url: string;
+  companyName: string;
+  publishedAt: Date | null;
+}
+
 interface MorningSummaryEmailProps {
   newsItems: MorningSummaryNewsItem[];
   /**
@@ -30,6 +41,16 @@ interface MorningSummaryEmailProps {
    * att de inte konkurrerar med de säkra träffarna.
    */
   possibleItems?: MorningSummaryNewsItem[];
+  /**
+   * Jobbannonser. Egen sektion och inte inblandade bland artiklarna, därför
+   * att de besvarar en annan fråga: inte "vad har hänt" utan "vad förbereder
+   * de". En AM läser dem med annan blick.
+   */
+  jobAds?: MorningSummaryJobAdItem[];
+}
+
+function buildJobAdSubtitle(item: MorningSummaryJobAdItem): string {
+  return [item.occupation, item.municipality].filter(Boolean).join(" · ");
 }
 
 function buildPreviewText(newsItems: MorningSummaryNewsItem[]): string {
@@ -47,6 +68,7 @@ function buildArticleCountLabel(count: number): string {
 export function MorningSummaryEmail({
   newsItems,
   possibleItems = [],
+  jobAds = [],
 }: MorningSummaryEmailProps) {
   const articleCountLabel = buildArticleCountLabel(newsItems.length);
 
@@ -132,6 +154,45 @@ export function MorningSummaryEmail({
                     </Link>
                   </Section>
                 ))}
+              </Section>
+            ) : null}
+
+            {jobAds.length > 0 ? (
+              <Section className="mt-10">
+                <Hr className="mb-6 border-zinc-200" />
+                <Text className="m-0 mb-1 text-xs font-semibold uppercase tracking-[0.08em] text-zinc-500">
+                  Nya jobbannonser
+                </Text>
+                <Text className="m-0 mb-4 text-[13px] leading-5 text-zinc-500">
+                  Rekrytering syns i Platsbanken innan den syns i pressen.
+                  Flera annonser på samma ort är oftast en expansion.
+                </Text>
+
+                {jobAds.map((item) => {
+                  const subtitle = buildJobAdSubtitle(item);
+
+                  return (
+                    <Section
+                      key={item.id}
+                      className="mb-3 rounded-lg border border-solid border-zinc-200 bg-white px-4 py-3"
+                    >
+                      <Text className="m-0 text-[11px] font-semibold uppercase tracking-[0.04em] text-zinc-400">
+                        {item.companyName}
+                      </Text>
+                      <Link
+                        href={item.url}
+                        className="text-sm font-semibold leading-5 text-zinc-900 underline"
+                      >
+                        {item.headline}
+                      </Link>
+                      {subtitle ? (
+                        <Text className="m-0 mt-1 text-[13px] leading-5 text-zinc-500">
+                          {subtitle}
+                        </Text>
+                      ) : null}
+                    </Section>
+                  );
+                })}
               </Section>
             ) : null}
 

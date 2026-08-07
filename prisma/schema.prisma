@@ -72,6 +72,7 @@ model Company {
   updatedAt         DateTime           @updatedAt
   user              User               @relation(fields: [userId], references: [id], onDelete: Cascade)
   newsItems         NewsItem[]
+  jobAds            JobAd[]
   discoveredSources DiscoveredSource[]
 
   @@unique([userId, name])
@@ -97,6 +98,39 @@ model NewsItem {
   @@unique([companyId, url])
   @@index([companyId])
   @@index([status])
+}
+
+/**
+ * Jobbannons från Arbetsförmedlingens Platsbanken.
+ *
+ * Egen modell och inte en `NewsItem`, därför att fälten faktiskt används: ort
+ * och yrke är det som gör en annons till en expansionssignal, och de går inte
+ * att utläsa ur en rubriksträng.
+ */
+model JobAd {
+  id                 String    @id @default(cuid())
+  companyId          String
+  /// JobTechs annons-id. Unikhetsnyckel i stället för URL:en, som är härledd.
+  externalId         String
+  headline           String
+  employerName       String
+  workplaceName      String?
+  organizationNumber String?
+  occupation         String?
+  municipality       String?
+  region             String?
+  url                String
+  publishedAt        DateTime?
+  deadline           DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+  company            Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  // Unikhet per bolag, av samma skäl som på NewsItem: två bevakningar av
+  // samma arbetsgivare ska båda få träffen.
+  @@unique([companyId, externalId])
+  @@index([companyId])
+  @@index([publishedAt])
 }
 
 model DiscoveredSource {

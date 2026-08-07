@@ -16,6 +16,7 @@ interface EmailDeliveryReport {
   email: string;
   articleCount: number;
   possibleCount: number;
+  jobAdCount: number;
   sent: boolean;
   emailId: string | null;
   error: string | null;
@@ -42,15 +43,21 @@ export async function GET(request: Request): Promise<NextResponse> {
         email: user.email,
         articleCount: user.createdNewsItems.length,
         possibleCount: user.possibleNewsItems.length,
+        jobAdCount: user.createdJobAds.length,
       };
 
-      if (user.createdNewsItems.length === 0) {
+      // Jobbannonser räknas som skäl att mejla. En morgon där bolaget lagt ut
+      // tre nya tjänster är en signal även om pressen är tyst.
+      if (
+        user.createdNewsItems.length === 0 &&
+        user.createdJobAds.length === 0
+      ) {
         deliveries.push({
           ...base,
           sent: false,
           emailId: null,
           error: null,
-          skippedReason: "no-new-articles",
+          skippedReason: "no-new-items",
         });
         continue;
       }
@@ -74,11 +81,12 @@ export async function GET(request: Request): Promise<NextResponse> {
           {
             to: user.email,
             possibleItems: user.possibleNewsItems,
+            jobAds: user.createdJobAds,
           },
         );
 
         console.log(
-          `Morning summary sent to ${user.email} (${sendResult.id}) with ${user.createdNewsItems.length} articles.`,
+          `Morning summary sent to ${user.email} (${sendResult.id}) with ${user.createdNewsItems.length} articles and ${user.createdJobAds.length} job ads.`,
         );
 
         deliveries.push({
