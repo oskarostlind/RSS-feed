@@ -88,6 +88,27 @@ function isJobTechEnabled(): boolean {
 }
 
 /**
+ * GNews är avstängd som standard — enda källan som måste slås **på**.
+ *
+ * Mätning 2026-08-07 över åtta bolag (`/api/debug/source-coverage`): på de fem
+ * lokala och medelstora svenska bolagen gav GNews noll träffar rakt igenom. På
+ * de tre riksmediebolagen gav den 24 träffar, men bara **två** av dem var
+ * sådana som ingen annan källa hittade och som dessutom nådde tidsfönstret.
+ *
+ * Två mejlbara artiklar på åtta bolag, båda på bolag av en typ tjänsten inte är
+ * byggd för, väger inte upp kostnaden: ett utgående anrop per bolag varje
+ * morgon, och den enda källan som kan slå i en kvot. Strypningen är dessutom
+ * hårdare än vi trott — 429 kom vid ungefär ett anrop i sekunden, alltså långt
+ * under vad `DISCOVERY_CONCURRENCY` redan tillåter.
+ *
+ * Avstängd, inte borttagen. `GNEWS_ENABLED=true` sätter tillbaka den utan
+ * deploy, och mätverktyget finns kvar för att ompröva beslutet.
+ */
+function isGNewsEnabled(): boolean {
+  return process.env.GNEWS_ENABLED?.toLowerCase() === "true";
+}
+
+/**
  * Flyttar fram markören för de bolag som just bearbetats.
  *
  * Ett misslyckande här får inte sänka körningen — artiklarna är redan sparade
@@ -135,7 +156,7 @@ export async function executeDiscoveryJob(
     throw new Error("NO_COMPANIES");
   }
 
-  const searchService = SearchService.fromEnv();
+  const searchService = isGNewsEnabled() ? SearchService.fromEnv() : null;
   const rssFeedService = new RssFeedService();
   const jobTechService = isJobTechEnabled() ? new JobTechService() : null;
 

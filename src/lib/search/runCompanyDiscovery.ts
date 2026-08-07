@@ -83,6 +83,17 @@ async function collectSafely(
 }
 
 /**
+ * En avstängd källa rapporteras som lyckad med noll träffar, och utelämnas ur
+ * `perSource` nedan. Att rapportera den som misslyckad vore fel — ingen ska
+ * väckas av att en källa gör precis som den blivit tillsagd.
+ */
+const DISABLED_SOURCE_OUTCOME = {
+  hits: [] as SearchHit[],
+  ok: true,
+  throttled: false,
+} as const;
+
+/**
  * HTTP 429 betyder att källan lever och att vi frågar för fort — inte att den
  * är nere. Skillnaden avgör om larmet ska väcka någon eller bara noteras.
  *
@@ -121,7 +132,7 @@ async function collectJobsSafely(
 export async function runCompanyDiscovery(
   companyId: string,
   companyName: string,
-  searchService: SearchService,
+  searchService: SearchService | null,
   rssFeedService: RssFeedService,
   jobTechService: JobTechService | null = null,
 ): Promise<CompanyDiscoveryResult> {
@@ -132,9 +143,13 @@ export async function runCompanyDiscovery(
       console.error(`RSS discovery failed for "${companyName}":`, error);
       return [];
     }),
-    collectSafely("GNews discovery", companyName, () =>
-      searchService.searchForCompany(companyName),
-    ),
+    // `null` betyder avstängd, inte trasig. Se `isGNewsEnabled` i
+    // executeDiscoveryJob för varför den är avstängd som standard.
+    searchService
+      ? collectSafely("GNews discovery", companyName, () =>
+          searchService.searchForCompany(companyName),
+        )
+      : Promise.resolve(DISABLED_SOURCE_OUTCOME),
     collectJobsSafely(companyId, companyName, jobTechService),
   ]);
 
@@ -150,12 +165,18 @@ export async function runCompanyDiscovery(
       ok: outcome.ok,
       throttled: false,
     })),
-    {
-      source: "gnews",
-      hits: gnewsHits.length,
-      ok: gnews.ok,
-      throttled: gnews.throttled,
-    },
+    // Utelämnas helt när källan är avstängd. En källa som inte tillfrågats
+    // ska inte synas i hälsorapporten — varken som frisk eller som tyst.
+    ...(searchService
+      ? [
+          {
+            source: "gnews" as SourceLabel,
+            hits: gnewsHits.length,
+            ok: gnews.ok,
+            throttled: gnews.throttled,
+          },
+        ]
+      : []),
     ...(jobTechService
       ? [
           {
