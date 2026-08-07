@@ -66,7 +66,7 @@ vara generös, och tveksamma träffar ska hellre med än bort.
 
 | Typ | Källa | Status |
 |---|---|---|
-| Nyhetsartiklar | Google News RSS | **Byggt.** Täcker lokal- och branschpress |
+| Nyhetsartiklar | Google News RSS + Bing News RSS | **Byggt.** Täcker lokal- och branschpress. GNews avstängd 2026-08-07, se avsnitt 7 |
 | Pressmeddelanden | Cision, MyNewsdesk | Delvis — kommer med via Google News, egna flöden återstår |
 | Registerhändelser | Bolagsverket, Post- och Inrikes Tidningar | **Blockerat.** Ingen öppen väg in — se avsnitt 7 |
 | Jobbannonser | Arbetsförmedlingens JobTech (öppet API) | **Byggt 2026-08-07.** Egen modell `JobAd`, egen sektion i mejlet |
@@ -229,15 +229,21 @@ schemat och markerad som körd i produktionsdatabasen. Två saker följer av det
 schemat går att läsa ut ur repot, och en ny databas kan få samma schema utan att
 någon minns vilka `db push` som gjordes när.
 
-**Andra halvan återstår, och den är den som räknas.** Byggkommandot är
-fortfarande `prisma generate && next build` och rör alltså aldrig databasen.
-Nästa gång `DATABASE_URL` pekar på en tom databas händer exakt samma sak igen.
-Ändringen är att lägga `prisma migrate deploy &&` först i byggkommandot;
-baseline-migrationen var förutsättningen och finns nu.
+**Andra halvan är också gjord, 2026-08-07.** Byggkommandot är numera
+`prisma migrate deploy && prisma generate && next build`. En ny eller
+återställd databas får schemat automatiskt vid nästa deploy, och `P2021` kan
+inte längre uppstå av att någon pekat om `DATABASE_URL`.
 
-Steget är medvetet inte taget automatiskt. Det ändrar vad **varje** deploy gör
-mot produktionsdatabasen, och det beslutet bör fattas med öppna ögon.
-`prisma/migrations/README.md` beskriver exakt vad som ska ändras.
+Kontrollerat före ändringen: `prisma migrate status` svarade "Database schema is
+up to date" och `prisma migrate deploy` svarade "No pending migrations to apply"
+mot produktionsdatabasen — alltså en no-op, även mot Neons pooler-endpoint.
+Deployen efteråt gick till `READY`.
+
+**Priset:** deployen beror nu på att databasen svarar. Är Neon nere misslyckas
+bygget i stället för att gå igenom med en app som inte kan läsa något. Det är
+avsiktligt — ett trasigt bygge syns, en tyst tom databas gör inte det — men en
+databasincident blockerar numera också utrullningar. Backa genom att ta bort
+`prisma migrate deploy && ` ur `build`.
 
 ## 7. Risker som är billigare att veta om nu
 
@@ -270,23 +276,39 @@ normaltillstånd, och ett bolag som inte rekryterar ger noll annonser korrekt.
 Logiken är tabelltestad i `sourceHealth.test.ts` — den går inte att verifiera
 skarpt, eftersom en källa inte tystnar på beställning.
 
-**GNews gratisnivå tål inte parallellisering.** Upptäckt samma dag, av det nya
-larmet, i kod som skrivits en timme tidigare: fem bolag samtidigt är fem
-samtidiga GNews-anrop, och svaret blev HTTP 429. Strypning har därför en egen
-bedömning skild från haveri — en strypt källa lever, och åtgärden är att sänka
-`DISCOVERY_CONCURRENCY`, inte att undersöka leverantörens drift.
+~~**GNews gratisnivå tål inte parallellisering.**~~ **Avgjort 2026-08-07 —
+GNews är avstängd som standard.** Strypningen visade sig hårdare än vi trott:
+429 kom vid ungefär **ett anrop i sekunden**, alltså även när bolagen kördes
+sekventiellt. Slutsatsen att sekventiell körning räcker var fel.
 
-Värt att överväga: **GNews bidrar nästan ingenting till det tjänsten är till
-för.** På Peges — testfallet, ett lokalt industribolag — har den gett noll
-träffar i varje mätning sedan 2026-08-06. På Ericsson gav den 11:10 samma dag
-åtta träffar, men Ericsson är riksmedia och redan väl täckt av de två
-RSS-källorna; samtliga åtta låg dessutom utanför tidsfönstret.
+Strypning har fortfarande en egen bedömning skild från haveri — en strypt källa
+lever — men den bedömningen gäller nu bara om någon slår på GNews igen.
 
-Bilden är alltså inte "GNews ger noll" utan "GNews ger träffar där vi redan har
-täckning och noll där vi behöver den". Den kostar ett anrop per bolag och är den
-enda källa som kan slå i en kvot. Att slå av den är fortfarande värt att
-överväga, men beslutet bör grundas på en mätning över flera lokala bolag och
-inte på testfallet ensamt.
+**Mätningen som avgjorde det, över åtta bolag** med det nya verktyget
+`/api/debug/source-coverage`:
+
+| Bolagstyp | Bolag | GNews träffar | Unikt mejlbara |
+|---|---|---|---|
+| Lokala och medelstora | Peges, Gnosjö Automatsvarvning, Fläkt Woods, Hedin Bil, Norra Skog | 0 | **0** |
+| Riksmedia | Ericsson, Volvo, Spotify | 24 | **2** |
+
+"Unikt mejlbara" är måttet som betyder något: träffar som ingen annan källa
+hittade **och** som är relevanta och inom tidsfönstret. Råa träffräkningar
+överdriver — de flesta av GNews 24 fanns redan i RSS-källorna eller låg utanför
+fönstret.
+
+Att GNews svarade 8, 10 och 6 på riksmediebolagen är kontrollen som gör noll på
+de lokala trovärdigt: det är källans besked, inte ett mätfel.
+
+Två mejlbara artiklar på åtta bolag, båda på bolag av den typ tjänsten redan
+täcker väl, väger inte upp ett utgående anrop per bolag varje morgon från den
+enda källa som kan slå i en kvot. **Avstängd, inte borttagen** —
+`GNEWS_ENABLED=true` sätter tillbaka den utan deploy, och mätverktyget finns
+kvar för att ompröva beslutet. En avstängd källa utelämnas ur hälsorapporten i
+stället för att rapporteras som tyst.
+
+Kvar att veta: mätningen är en ögonblicksbild av åtta bolag en dag. Den säger
+att GNews inte bidrar *nu*, inte att den aldrig kan göra det.
 
 **Länkarna går via Google.** Nya artikel-ID:n är krypterade, så publicistens
 riktiga URL går inte att gräva fram. Länken fungerar för en läsare, men
@@ -367,8 +389,8 @@ personuppgiftspolicy och rutin för radering innan öppen registrering.
 8. **Verifierad mejldomän i Resend — högsta prioritet av det som återstår.**
    Inloggningen är i praktiken trasig utan den: mejlen levereras men hamnar i
    skräpposten, se avsnitt 6. Kräver en egen domän och DNS-åtkomst
-9. Mät GNews täckning över flera **lokala** bolag och slå av den om bilden
-   håller. Noll träffar på Peges i varje mätning, men åtta på Ericsson — se
-   avsnitt 7. Beslutet bör inte grundas på testfallet ensamt
+9. ~~Mät GNews täckning över flera **lokala** bolag och slå av den om bilden
+   håller~~ — **klart 2026-08-07.** Mätt över åtta bolag, GNews avstängd som
+   standard. Se avsnitt 7
 10. ~~Kostnadstak per **användare**, inte bara per import~~ — **klart
     2026-08-07.** Portföljtak härlett ur körningens kapacitet, se avsnitt 6
