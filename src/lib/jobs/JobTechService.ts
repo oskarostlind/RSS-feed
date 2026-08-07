@@ -1,4 +1,4 @@
-import { stripLegalSuffix } from "@/lib/search/companyQuery";
+import { splitCompanyName } from "@/lib/search/companyQuery";
 import type { JobAdHit } from "@/lib/jobs/types";
 
 /**
@@ -106,14 +106,20 @@ function toJobAdHit(raw: RawJobTechHit): JobAdHit | null {
 }
 
 /**
- * Bolagsformen ska bort ur frågan. JobTechs fritextindex innehåller
- * annonstexten, inte bolagsregistrets stavning, och `"Peges i Ljusdal AB"`
- * som exakt fras ger därför noll träffar där `"Peges"` ger rätt annonser.
+ * Sök på varumärkesledet, inte på hela det registrerade namnet.
+ *
+ * JobTechs fritextindex innehåller annonstexten, inte bolagsregistrets
+ * stavning. En annons från Peges skriver "Peges" eller "Peges Industri" — inte
+ * "Peges i Ljusdal AB". Både bolagsformen och ortsledet gör den exakta frasen
+ * så snäv att den ger noll träffar.
+ *
+ * Att bredda frågan kostar inget i precision, eftersom
+ * `filterJobAdsByEmployer` ändå kräver träff mot arbetsgivarfältet efteråt.
  */
 export function buildJobTechQuery(companyName: string): string | null {
-  const cleaned = stripLegalSuffix(companyName);
+  const { brand } = splitCompanyName(companyName);
 
-  return cleaned ? `"${cleaned}"` : null;
+  return brand ? `"${brand}"` : null;
 }
 
 export class JobTechService {
