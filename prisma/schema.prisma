@@ -15,6 +15,57 @@ enum NewsItemStatus {
   REJECTED
 }
 
+/**
+ * Vad en engångslänk är till för. Ligger i databasen och inte i URL:en,
+ * eftersom en länk som bär sitt eget ändamål också går att skriva om.
+ */
+enum AuthTokenPurpose {
+  EMAIL_VERIFICATION
+  PASSWORD_RESET
+  EMAIL_CHANGE
+}
+
+/**
+ * Engångslänkar för verifiering, återställning och adressbyte.
+ *
+ * **Varför en tabell och inte en signerad token i URL:en.** Tjänsten använde
+ * först HMAC-tokens som bar allt de behövde — användar-id, måladress,
+ * utgångstid — direkt i länken. Det fungerade och krävde ingen migration, men
+ * det gav länkar som såg ut så här:
+ *
+ *   /byt-mejl?u=c615a1&e=ny@adress.se&x=1786190000000&t=9fad9685...
+ *
+ * Den formen är ett problem i sig. 2026-08-08 spärrade Chrome en av tjänstens
+ * egna inloggningslänkar med "Farlig webbplats" — en ny domän, en länk som kom
+ * via mejl, en lång hex-token och en mejladress i klartext i frågesträngen är
+ * exakt hur nätfiske ser ut. Domänen var inte spärrlistad; det var formen som
+ * larmade.
+ *
+ * Nu ligger allt utom en kort slumpsträng i databasen. Länken blir
+ * `/verifiera?t=<slump>` och avslöjar varken vem den gäller eller vad den gör.
+ *
+ * **Vi lagrar hashen, inte hemligheten.** `tokenHash` är SHA-256 av det som
+ * står i länken. Den som får läsa tabellen kan därför inte logga in som någon
+ * annan — samma skäl som att lösenord inte lagras i klartext. Uppslagningen
+ * hashar det inkommande värdet och slår på primärnyckeln.
+ */
+model AuthToken {
+  /// SHA-256 av hemligheten i länken. Aldrig hemligheten själv.
+  tokenHash  String           @id
+  userId     String
+  purpose    AuthTokenPurpose
+  /// Måladressen vid EMAIL_CHANGE. Null för övriga ändamål.
+  newEmail   String?
+  expiresAt  DateTime
+  /// Sätts när länken använts. En förbrukad länk går inte att spela om.
+  consumedAt DateTime?
+  createdAt  DateTime         @default(now())
+  user       User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, purpose])
+  @@index([expiresAt])
+}
+
 model User {
   id            String    @id @default(cuid())
   name          String?
@@ -24,6 +75,14 @@ model User {
   accounts      Account[]
   sessions      Session[]
   companies     Company[]
+  authTokens    AuthToken[]
+
+  /**
+   * scrypt-hash enligt `lib/auth/password.ts`. Nullbar därför att kontot kan
+   * finnas innan ett lösenord satts — magisk länk skapade användare utan, och
+   * de behöver en väg in via återställning i stället för att låsas ute.
+   */
+  passwordHash String?
 
   /**
    * Satt när användaren avregistrerat sig från morgonmejlet. Nullbar utan
