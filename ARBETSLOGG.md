@@ -3,6 +3,44 @@
 Vad de automatiska körningarna gjort, senast överst. Kort med flit — det här är
 överblicken, inte dokumentationen. Den ligger i `PROJECT.md`.
 
+## 2026-08-08 16:45 — lösenordsinloggning, steg 1–3
+
+**Byggt:**
+
+- `a89b672` — scrypt-hashning. Valt för att bcrypt och argon2 är native-moduler
+  och `node_modules` här är byggt för Windows. Ett test hittade en bugg medan
+  jag skrev det: `needsRehash` godkände en hash utan digest.
+- `9077992` — `AuthToken`-tabellen. Migrationen körd i produktion.
+- `ad50e4f` — registrering, inloggning, verifiering, återställning och fyra nya
+  sidor.
+
+**Varför designen ser ut som den gör.** Jag tänkte först lägga verifieringen i
+en signerad URL, samma trick som avregistreringen. Chrome-varningen Oskar fick
+visade att det var fel väg: formen med token och mejladress i frågesträngen är
+det som larmar, inte domänen. Länken bär nu bara 32 slumptecken.
+
+**Beslutet som är värt att syna:** sessionerna skapas av oss i stället för av
+Auth.js. Auth.js lösenordsväg kräver JWT-sessioner, och då hade ett raderat
+konto kunnat fortsätta användas i upp till trettio dagar — vilket bryter mot
+det §3 lovar om GDPR-radering. Vi skriver därför en `Session`-rad och sätter
+exakt den kaka Auth.js läser. All befintlig sessionskod är orörd.
+
+Bonus av samma val: lösenordsbyte loggar ut alla andra enheter.
+
+**Inte gjort än:** steg 4, att ta bort magisk länk. Den ligger kvar nedtonad
+längst ned på inloggningssidan. **Den får inte tas bort förrän Oskar satt ett
+lösenord** — hans konto skapades med magisk länk och har ingen hash. Vägen dit
+är `/glomt-losenord`, vilket samtidigt testar hela kedjan skarpt.
+
+**Verifierat:** `/registrera` och `/glomt-losenord` renderas i produktion, 140
+tester gröna, migrationen applicerad. Hela flödet med riktigt mejl är **inte**
+provat — det kräver en inkorg jag inte har.
+
+**Trasigt när jag slutade:** ingenting. Inloggning med magisk länk fungerar som
+förut.
+
+---
+
 ## 2026-08-08 14:14 — mejlet går från egen domän
 
 **Gjort:** utskicken flyttade från Resends sandlådedomän till Strato-brevlådan

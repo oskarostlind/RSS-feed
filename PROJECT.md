@@ -77,6 +77,44 @@ bort när en tabell läggs till — och kvarlämnad persondata är då en tyst b
 inloggningssidan, där samtycket i praktiken ges. Den beskriver vad tjänsten
 faktiskt gör — ändras behandlingen ska sidan ändras i samma commit.
 
+### Inloggningen
+
+**Adress och lösenord sedan 2026-08-08.** Magisk länk var förvalet fram till
+dess och ligger kvar som reserv tills lösenordsvägen körts skarpt.
+
+Bytet gjordes av två skäl. Det praktiska: en account manager använder tjänsten
+dagligen och ska inte behöva växla till mejlen varje gång sessionen gått ut.
+Det tvingande: 2026-08-08 spärrade Chrome en av tjänstens egna magiska länkar
+med **"Farlig webbplats"**. Domänen var inte spärrlistad — Googles insynsrapport
+hade ingen data om den — utan det var formen som larmade. En ny domän, en länk
+som kom via mejl, en lång hex-token, en mejladress i klartext och en parameter
+som pekade vidare till en annan URL är exakt hur nätfiske ser ut. Med lösenord
+skickas inget mejl alls vid inloggning.
+
+**Sessionerna skapas av tjänsten själv, inte av Auth.js.** Auth.js standardväg
+för lösenord kräver `strategy: "jwt"`, alltså en signerad kaka utan rad i
+databasen. Det hade brutit löftet i GDPR-avsnittet nedan: raderingen förlitar
+sig på att kaskaden tar bort `Session`, så att ett raderat konto loggas ut i
+samma stund. Med JWT lever kakan i upp till trettio dagar efter att kontot
+försvunnit.
+
+I stället skrivs en `Session`-rad och **exakt den kaka Auth.js läser** sätts.
+Följden är att `auth()`, `getRequiredUserId()` och dashboard-layouten fungerar
+oförändrade. Samma val gör att ett lösenordsbyte kan logga ut alla andra
+enheter — den som byter lösenord för att någon kommit åt kontot ska kasta ut
+inkräktaren, inte bara sig själv.
+
+**Inget svar avslöjar om en adress har konto.** Registrering på en befintlig
+adress ger samma kvitto som en ny, fel adress och fel lösenord ger samma
+besked, och återställning svarar alltid som om mejlet skickats. För en tjänst
+vars hela innehåll är vilka bolag en säljare bevakar är kundlistan inte en
+detalj. Inloggningen kör dessutom en kasserad hashjämförelse när kontot saknas,
+eftersom servern annars svarar märkbart snabbare på okända adresser.
+
+**Engångslänkarna bär bara en slumpsträng.** Allt annat ligger i `AuthToken`,
+och det är hashen av hemligheten som lagras — inte hemligheten. Se
+`authTokenSecret.ts`.
+
 ### Mejlleveransen
 
 Tjänsten heter **Kundnytt** sedan 2026-08-08 och domänen är
