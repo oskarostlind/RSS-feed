@@ -81,11 +81,31 @@ Kommer det fram: **logga ut och begär en ny inloggningslänk.** Det är det end
 som verkligen bevisar att kedjan håller, och det testet har aldrig gått igenom
 skarpt.
 
-## 6. Domänen mot Vercel
+## 6. Domänen mot Vercel — ~~återstår~~ **klart 2026-08-08**
 
-Skilt från mejlen. I Vercel, **Settings → Domains → Add** `kundnytt.se`.
-Vercel säger vilken A- eller CNAME-post som ska in hos Strato. Säg till så gör
-jag det via Vercel-MCP:n.
+Sajten ligger på **https://www.kundnytt.se**. Apex `kundnytt.se` svarar 308 och
+skickar vidare till `www`, vilket är Vercels rekommenderade upplägg — och det
+som redan gällde för dina andra domäner.
+
+Posterna som lades in hos Strato:
+
+| Typ | Namn | Värde |
+|---|---|---|
+| A | `@` | `216.198.79.1` |
+| CNAME | `www` | `cc51b1dc9ff7ea6b.vercel-dns-017.com.` |
+
+Två anteckningar som gäller nästa gång:
+
+- **CNAME-värdet är unikt per projekt.** Det där hexprefixet hör till
+  `rss-feed` och går inte att återanvända för en annan domän eller ett annat
+  projekt — hämta alltid det aktuella ur Vercels domänvy.
+- **Vercel-MCP:n kan inte lägga till domäner.** Den kan köpa nya och läsa
+  projektet, men själva kopplingen görs i webbgränssnittet. Det som stod här
+  tidigare lovade för mycket.
+
+Vill du hellre ha apex som kanonisk adress går det att byta i Vercel utan
+kodändring: `resolveAppBaseUrl` härleder adressen ur requesten, så länkarna i
+mejlen följer med av sig själva.
 
 ---
 

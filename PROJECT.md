@@ -48,7 +48,7 @@ Status 2026-08-07:
 | Kostnadstak per användare | **Byggt.** Portföljtak härlett ur körningens kapacitet, se avsnitt 6 |
 | Missbruksskydd | **Byggt.** Tak för inloggningsmejl, se nedan |
 | GDPR-hantering | **Byggt.** Radering, export och integritetspolicy |
-| Verifierad mejldomän | **Väntar på DNS.** `kundnytt.se` köpt 2026-08-08 (foretagskollen.se var upptagen), se `DOMAN-CHECKLISTA.md` |
+| Verifierad mejldomän | **Väntar på Brevo.** Webbdomänen är live på `www.kundnytt.se` sedan 2026-08-08, men *mejldomänen* `mail.kundnytt.se` är en separat sak och återstår — se `DOMAN-CHECKLISTA.md` |
 
 **Öppen registrering kan byggas färdig utan mejldomänen, men inte släppas utan
 den.** Nya användare loggar in med magisk länk. Utan verifierad domän hamnar
@@ -628,9 +628,20 @@ verifierats**, inte tidigare.
     Det här behöver bestämmas **innan** mejldomänen verifieras, inte efter.
     Idag hindras en främling bara av att mejlet inte kommer fram; den dagen
     punkt 8 är löst faller den spärren över en natt
-20. **Gränssnittsluckor som inte blockerar.** Kvar: inga laddningstillstånd,
-    mobilvyn obeprövad. *Avregistreringslänken klar 2026-08-08* — se avsnitt 6.
-    *Byte av mejladress klart 2026-08-08* — se nedan
+20. ~~**Gränssnittsluckor som inte blockerar.**~~ — **klart 2026-08-08.**
+    Avregistreringslänk, byte av mejladress, laddningstillstånd och mobilvy.
+    Se nedan och avsnitt 6
+
+    **Laddningstillstånd.** Delad `SubmitButton` med `useFormStatus` på varje
+    formulär. Det är inte kosmetika: utan återkoppling ser en långsam åtgärd
+    ut som en trasig, och det andra klicket kostar på riktigt — `addCompany`
+    kör en hel sökning till, `requestEmailChange` skickar ännu ett
+    bekräftelsemejl, och inloggningsformuläret bränner ett av de fem
+    mejl per adress och timme. Knappen är både ett besked och en spärr.
+
+    **Mobilvyn.** Tre saker sprack under ~400 px och är rättade: kontosidans
+    statistikkort låg i tre kolumner, adressfältet och raderingsrutan hade
+    fasta bredder, och inkorgens rubrikrad klämde ihop räknaren.
 
     **Byte av mejladress** sker i två steg: bekräftelselänken går till den
     **nya** adressen och kontot flyttas först när någon klickat på den. Skälet

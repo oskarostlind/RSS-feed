@@ -3,6 +3,34 @@
 Vad de automatiska körningarna gjort, senast överst. Kort med flit — det här är
 överblicken, inte dokumentationen. Den ligger i `PROJECT.md`.
 
+## 2026-08-08 10:40 — sajten är live på kundnytt.se
+
+**Byggt:** `72a09fc` — laddningstillstånd på varje formulär och en mobilvy som
+håller. Sista raderna i §9.20, som därmed är avbockad i sin helhet.
+
+**Gjort utanför koden:** domänen kopplad. `kundnytt.se` och `www.kundnytt.se`
+tillagda i Vercel-projektet, och posterna inlagda hos Strato: A `@` →
+`216.198.79.1`, CNAME `www` → `cc51b1dc9ff7ea6b.vercel-dns-017.com.` DNS slog
+igenom direkt hos både Google och Cloudflare, Vercel säger *Valid
+Configuration* för båda, och apex svarar 308 vidare till www.
+
+**Gissning:** att behålla Vercels förval att göra `www` kanonisk och låta apex
+omdirigera. Alternativet var apex som kanonisk adress. Det går att byta i
+Vercel utan kodändring — `resolveAppBaseUrl` härleder adressen ur requesten, så
+mejllänkarna följer med av sig själva.
+
+**Att inte förväxla:** webbdomänen är klar, **mejldomänen är det inte.**
+`mail.kundnytt.se` hos Brevo är en separat sak och fortfarande det som
+blockerar fas 1. Stegen står i `DOMAN-CHECKLISTA.md` 1–5.
+
+**Rättat i dokumentationen:** checklistan lovade att jag kunde koppla domänen
+via Vercel-MCP:n. Det kan jag inte — den kan köpa nya domäner och läsa
+projektet, men kopplingen görs i webbgränssnittet.
+
+**Trasigt när jag slutade:** ingenting. 123 tester gröna.
+
+---
+
 ## 2026-08-08 09:56 — de två sista hindren som var kod
 
 Körningen började med att `.git/index.lock` låg kvar från en tidigare session
