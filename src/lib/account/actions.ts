@@ -1,6 +1,11 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import {
+  confirmEmailChange,
+  requestEmailChange,
+} from "@/lib/account/changeEmail";
+import { parseExpiresAt } from "@/lib/account/emailChangeToken";
 import { getRequiredUserId, signOut } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
@@ -69,6 +74,51 @@ export async function setMorningEmailAction(formData: FormData): Promise<void> {
   }
 
   redirect(`/dashboard/konto?mejl=${enable ? "pa" : "av"}`);
+}
+
+/**
+ * Begär byte av mejladress. Skickar bara mejlet — bytet sker när länken i det
+ * klickas, se `changeEmail.ts`.
+ */
+export async function requestEmailChangeAction(
+  formData: FormData,
+): Promise<void> {
+  const userId = await getRequiredUserId();
+  const result = await requestEmailChange(userId, formData.get("epost"));
+
+  if (!result.ok) {
+    redirect(`/dashboard/konto?fel=adressbyte-${result.reason}`);
+  }
+
+  // Adressen följer med i URL:en så att kvittot kan säga *vart* mejlet gick.
+  // "Ett mejl är skickat" utan adress är oanvändbart just när det behövs som
+  // mest: när användaren felstavat och undrar varför inget kommit fram.
+  redirect(
+    `/dashboard/konto?adressbyte=skickat&till=${encodeURIComponent(result.sentTo)}`,
+  );
+}
+
+/**
+ * Bekräftelseknappen på `/dashboard/konto/byt-mejl`.
+ *
+ * Behörigheten ligger i signaturen i formuläret och inte i sessionen — se
+ * `confirmEmailChange` för varför bytet inte får kräva inloggning.
+ */
+export async function confirmEmailChangeAction(
+  formData: FormData,
+): Promise<void> {
+  const result = await confirmEmailChange({
+    userId: formData.get("u"),
+    newEmail: formData.get("e"),
+    expiresAt: parseExpiresAt(formData.get("x")),
+    token: formData.get("t"),
+  });
+
+  redirect(
+    result.ok
+      ? `/byt-mejl?klart=1&e=${encodeURIComponent(result.email)}`
+      : `/byt-mejl?fel=${result.reason}`,
+  );
 }
 
 export interface AccountExport {

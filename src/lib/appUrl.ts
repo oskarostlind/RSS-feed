@@ -71,3 +71,26 @@ export function resolveAppBaseUrl(
     normalize(env.VERCEL_PROJECT_PRODUCTION_URL)
   );
 }
+
+/**
+ * Samma ordning, men för anropare som har huvudena utan att ha en `Request`.
+ *
+ * Serverfunktioner är just det fallet: de körs i en request men får den aldrig
+ * som argument, och `headers()` är det enda de har. Att bygga en låtsas-Request
+ * bara för att komma åt `resolveAppBaseUrl` skulle betyda att härledningen
+ * fanns i två varianter som kan glida isär — det här är samma tre steg med en
+ * annan ingång.
+ */
+export function resolveAppBaseUrlFromHost(
+  host: string | null | undefined,
+  proto: string | null | undefined,
+  env: NodeJS.ProcessEnv = process.env,
+): string | null {
+  const trimmedHost = host?.trim();
+
+  return (
+    normalize(env.APP_URL) ??
+    normalize(trimmedHost ? `${proto?.trim() || "https"}://${trimmedHost}` : undefined) ??
+    normalize(env.VERCEL_PROJECT_PRODUCTION_URL)
+  );
+}

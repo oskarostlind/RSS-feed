@@ -2,6 +2,7 @@ import Link from "next/link";
 import {
   deleteAccountAction,
   exportAccountData,
+  requestEmailChangeAction,
   setMorningEmailAction,
 } from "@/lib/account/actions";
 import { auth, getRequiredUserId } from "@/lib/auth";
@@ -11,7 +12,12 @@ import { DataExportButton } from "./_components/DataExportButton";
 export const dynamic = "force-dynamic";
 
 interface KontoPageProps {
-  searchParams: Promise<{ fel?: string; mejl?: string }>;
+  searchParams: Promise<{
+    fel?: string;
+    mejl?: string;
+    adressbyte?: string;
+    till?: string;
+  }>;
 }
 
 const FELMEDDELANDEN: Record<string, string> = {
@@ -20,8 +26,29 @@ const FELMEDDELANDEN: Record<string, string> = {
   mejlinstallning: "Inställningen kunde inte sparas. Försök igen.",
 };
 
+/**
+ * Fel som hör till adressbytet, skilda från de ovan så att de kan visas vid
+ * sitt eget formulär. Ett meddelande om en felstavad adress i raderingsrutans
+ * röda ram läser sig som något långt värre än det är.
+ */
+const ADRESSBYTESFEL: Record<string, string> = {
+  format: "Det där ser inte ut som en mejladress vi kan skicka till.",
+  samma: "Det är adressen du redan har.",
+  tagen: "Adressen används redan av ett annat konto.",
+  hemlighet:
+    "Tjänsten saknar den nyckel som behövs för att signera bekräftelselänken. Hör av dig så rättar vi det.",
+  adress:
+    "Tjänsten vet inte vilken publik adress den har, så länken kan inte byggas. Hör av dig så rättar vi det.",
+  utskick:
+    "Bekräftelsemejlet kunde inte skickas. Kontrollera adressen och försök igen.",
+  fel: "Något gick fel. Försök igen.",
+};
+
 export default async function KontoPage({ searchParams }: KontoPageProps) {
-  const { fel, mejl } = await searchParams;
+  const { fel, mejl, adressbyte, till } = await searchParams;
+  const adressbytesfel = fel?.startsWith("adressbyte-")
+    ? fel.slice("adressbyte-".length)
+    : null;
   const session = await auth();
   const data = await exportAccountData();
 
@@ -80,6 +107,66 @@ export default async function KontoPage({ searchParams }: KontoPageProps) {
           följer — så vi delar den inte med någon.
         </p>
         <DataExportButton />
+      </section>
+
+      <section className="mt-12">
+        <h2 className="text-lg font-medium text-zinc-900 dark:text-zinc-50">
+          Mejladress
+        </h2>
+        <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
+          Adressen är också din inloggning — det är hit inloggningslänken går.
+          Därför byts den i två steg: vi skickar en bekräftelse till den nya
+          adressen, och kontot flyttas först när du klickat i det mejlet. Fram
+          till dess fungerar din nuvarande adress som vanligt.
+        </p>
+
+        {adressbyte === "skickat" && (
+          <p
+            role="status"
+            className="mt-4 rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-700 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-300"
+          >
+            Bekräftelse skickad till {till ?? "den nya adressen"}. Länken är
+            giltig i en timme. Kolla skräpposten om den inte dykt upp.
+          </p>
+        )}
+
+        {adressbytesfel && (
+          <p
+            role="alert"
+            className="mt-4 rounded-md border border-red-300 bg-white px-3 py-2 text-sm text-red-800 dark:border-red-800 dark:bg-red-950 dark:text-red-200"
+          >
+            {ADRESSBYTESFEL[adressbytesfel] ?? ADRESSBYTESFEL.fel}
+          </p>
+        )}
+
+        <form
+          action={requestEmailChangeAction}
+          className="mt-4 flex flex-wrap items-end gap-3"
+        >
+          <div className="flex flex-col gap-1.5">
+            <label
+              htmlFor="epost"
+              className="text-sm font-medium text-zinc-700 dark:text-zinc-300"
+            >
+              Ny mejladress
+            </label>
+            <input
+              id="epost"
+              name="epost"
+              type="email"
+              required
+              autoComplete="email"
+              placeholder="fornamn@foretaget.se"
+              className="w-72 max-w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-50"
+            />
+          </div>
+          <button
+            type="submit"
+            className="rounded-md border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-zinc-900 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-50 dark:hover:bg-zinc-900"
+          >
+            Skicka bekräftelse
+          </button>
+        </form>
       </section>
 
       <section className="mt-12">
