@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { SubmitButton } from "@/components/SubmitButton";
 import {
   deleteAccountAction,
   exportAccountData,
@@ -82,7 +83,9 @@ export default async function KontoPage({ searchParams }: KontoPageProps) {
         <h2 className="text-lg font-medium text-zinc-900 dark:text-zinc-50">
           Det här lagrar vi om dig
         </h2>
-        <dl className="mt-4 grid grid-cols-3 gap-4">
+        {/* En kolumn på telefon. Tre 100-pixelskort bredvid varandra på en
+            375-skärm bryter siffrorna mitt itu. */}
+        <dl className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4">
           {[
             ["Bevakade bolag", antalBolag],
             ["Sparade nyheter", antalNyheter],
@@ -141,7 +144,7 @@ export default async function KontoPage({ searchParams }: KontoPageProps) {
 
         <form
           action={requestEmailChangeAction}
-          className="mt-4 flex flex-wrap items-end gap-3"
+          className="mt-4 flex flex-col items-stretch gap-3 sm:flex-row sm:flex-wrap sm:items-end"
         >
           <div className="flex flex-col gap-1.5">
             <label
@@ -157,15 +160,15 @@ export default async function KontoPage({ searchParams }: KontoPageProps) {
               required
               autoComplete="email"
               placeholder="fornamn@foretaget.se"
-              className="w-72 max-w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-50"
+              className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-50 sm:w-72"
             />
           </div>
-          <button
-            type="submit"
-            className="rounded-md border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-zinc-900 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-50 dark:hover:bg-zinc-900"
+          <SubmitButton
+            pendingLabel="Skickar..."
+            className="w-full rounded-md border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-zinc-900 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-50 dark:hover:bg-zinc-900 sm:w-auto"
           >
             Skicka bekräftelse
-          </button>
+          </SubmitButton>
         </form>
       </section>
 
@@ -204,12 +207,12 @@ export default async function KontoPage({ searchParams }: KontoPageProps) {
 
         <form action={setMorningEmailAction} className="mt-4">
           <input type="hidden" name="aktivera" value={morgonmejlPa ? "0" : "1"} />
-          <button
-            type="submit"
-            className="rounded-md border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-zinc-900 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-50 dark:hover:bg-zinc-900"
+          <SubmitButton
+            pendingLabel="Sparar..."
+            className="w-full rounded-md border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-zinc-900 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-50 dark:hover:bg-zinc-900 sm:w-auto"
           >
             {morgonmejlPa ? "Stäng av morgonmejlet" : "Slå på morgonmejlet"}
-          </button>
+          </SubmitButton>
         </form>
       </section>
 
@@ -246,14 +249,18 @@ export default async function KontoPage({ searchParams }: KontoPageProps) {
             type="text"
             autoComplete="off"
             required
-            className="w-48 rounded-md border border-red-300 bg-white px-3 py-2 text-sm text-zinc-900 dark:border-red-800 dark:bg-zinc-950 dark:text-zinc-50"
+            className="w-full rounded-md border border-red-300 bg-white px-3 py-2 text-sm text-zinc-900 dark:border-red-800 dark:bg-zinc-950 dark:text-zinc-50 sm:w-48"
           />
-          <button
-            type="submit"
-            className="w-fit rounded-md bg-red-700 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-red-800"
+          {/* Raderingen kaskaderar genom hela schemat och kan ta ett par
+              sekunder. Utan besked ser det ut som att bekräftelsen inte tog,
+              och ett andra klick på just den här knappen är inget att bjuda
+              på. */}
+          <SubmitButton
+            pendingLabel="Raderar..."
+            className="w-full rounded-md bg-red-700 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-red-800 sm:w-fit"
           >
             Radera kontot permanent
-          </button>
+          </SubmitButton>
         </form>
       </section>
 

@@ -25,7 +25,10 @@ export default async function DashboardPage() {
   return (
     <>
       <header className="border-b border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-950">
-        <div className="mx-auto flex max-w-3xl items-center justify-between px-6 py-6">
+        {/* Wrap och gap: på en telefon får rubriken och räknaren inte plats
+            bredvid varandra, och utan wrap klämdes räknaren ihop till två
+            rader mitt i ordet. */}
+        <div className="mx-auto flex max-w-3xl flex-wrap items-center justify-between gap-x-4 gap-y-3 px-6 py-6">
           <div>
             <h1 className="text-2xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
               Inkorg

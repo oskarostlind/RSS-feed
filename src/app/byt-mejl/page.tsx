@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { SubmitButton } from "@/components/SubmitButton";
 import { confirmEmailChangeAction } from "@/lib/account/actions";
 
 /**
@@ -134,12 +135,12 @@ export default async function BytMejlPage({ searchParams }: BytMejlPageProps) {
         <input type="hidden" name="e" value={e} />
         <input type="hidden" name="x" value={x} />
         <input type="hidden" name="t" value={t} />
-        <button
-          type="submit"
+        <SubmitButton
+          pendingLabel="Byter..."
           className="w-full rounded-md bg-zinc-900 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-zinc-800 dark:bg-zinc-50 dark:text-zinc-900 dark:hover:bg-zinc-200"
         >
           Byt till den här adressen
-        </button>
+        </SubmitButton>
       </form>
 
       <p className="mt-4 text-xs text-zinc-500 dark:text-zinc-400">

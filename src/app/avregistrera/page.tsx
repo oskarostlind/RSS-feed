@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { SubmitButton } from "@/components/SubmitButton";
 import { verifyUnsubscribeToken } from "@/lib/email/unsubscribeToken";
 import { confirmUnsubscribeAction } from "./actions";
 
@@ -101,12 +102,12 @@ export default async function AvregistreraPage({
       <form action={confirmUnsubscribeAction} className="mt-6">
         <input type="hidden" name="u" value={u} />
         <input type="hidden" name="t" value={t ?? ""} />
-        <button
-          type="submit"
-          className="inline-flex h-11 w-full items-center justify-center rounded-lg bg-zinc-900 px-6 text-sm font-medium text-white transition-colors hover:bg-zinc-700 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300"
+        <SubmitButton
+          pendingLabel="Avslutar..."
+          className="h-11 w-full rounded-lg bg-zinc-900 px-6 text-sm font-medium text-white transition-colors hover:bg-zinc-700 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300"
         >
           Ja, avsluta morgonmejlet
-        </button>
+        </SubmitButton>
       </form>
 
       <p className="mt-4 text-center text-xs text-zinc-500 dark:text-zinc-400">

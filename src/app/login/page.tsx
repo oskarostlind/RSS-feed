@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { requestMagicLinkAction } from "@/lib/auth/actions";
 import { resolveSender } from "@/lib/email/sender";
+import { SubmitButton } from "@/components/SubmitButton";
 
 /**
  * Egen inloggningssida.
@@ -94,12 +95,16 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
               className="mt-2 block h-11 w-full rounded-lg border border-zinc-300 bg-white px-3 text-sm text-zinc-900 outline-none focus:border-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:focus:border-zinc-300"
             />
           </div>
-          <button
-            type="submit"
-            className="inline-flex h-11 w-full items-center justify-center rounded-lg bg-zinc-900 px-6 text-sm font-medium text-white transition-colors hover:bg-zinc-700 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300"
+          {/* Den här knappen väntar på ett mejlutskick över nätverket, och är
+              den enda vägen in i tjänsten. Ett andra klick på en knapp som
+              ser död ut kostar användaren ett extra inloggningsmejl — och
+              taket är fem per adress och timme. */}
+          <SubmitButton
+            pendingLabel="Skickar..."
+            className="h-11 w-full rounded-lg bg-zinc-900 px-6 text-sm font-medium text-white transition-colors hover:bg-zinc-700 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300"
           >
             Skicka inloggningslänk
-          </button>
+          </SubmitButton>
         </form>
       
         <p className="mt-8 text-xs text-zinc-500 dark:text-zinc-400">

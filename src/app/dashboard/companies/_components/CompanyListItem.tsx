@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { CompanyNewsSearchButton } from "@/app/dashboard/companies/_components/CompanyNewsSearchButton";
+import { SubmitButton } from "@/components/SubmitButton";
 import { deleteCompany } from "@/lib/companies/actions";
 import type { CompanyRow } from "@/lib/companies/queries";
 import { formatNewsDate } from "@/lib/utils/formatDate";
@@ -42,12 +43,12 @@ export function CompanyListItem({ company }: CompanyListItemProps) {
             companyName={company.name}
           />
           <form action={deleteCompany.bind(null, company.id)}>
-            <button
-              type="submit"
+            <SubmitButton
+              pendingLabel="Tar bort..."
               className="rounded-lg border border-red-200 px-4 py-2 text-sm font-medium text-red-700 transition-colors hover:bg-red-50 dark:border-red-900 dark:text-red-300 dark:hover:bg-red-950"
             >
               Ta bort
-            </button>
+            </SubmitButton>
           </form>
         </div>
       </div>
