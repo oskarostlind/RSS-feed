@@ -59,10 +59,18 @@ export default async function Home() {
             </Link>
           ) : (
             <Link
-              href="/login"
+              href="/registrera"
               className="inline-flex h-12 items-center justify-center rounded-lg bg-zinc-900 px-6 text-sm font-medium text-white transition-colors hover:bg-zinc-700 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300"
             >
-              Logga in eller skapa konto
+              Skapa konto
+            </Link>
+          )}
+          {inloggad ? null : (
+            <Link
+              href="/login"
+              className="inline-flex h-12 items-center justify-center rounded-lg border border-zinc-300 px-6 text-sm font-medium text-zinc-800 transition-colors hover:bg-white dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-900"
+            >
+              Logga in
             </Link>
           )}
           <Link
@@ -74,7 +82,8 @@ export default async function Home() {
         </div>
 
         <p className="mt-4 text-sm text-zinc-500 dark:text-zinc-400">
-          Inget lösenord behövs — du loggar in med en länk till din mejladress.
+          Kostnadsfritt att komma igång. Du bekräftar din mejladress en gång,
+          sedan loggar du in med lösenord som vanligt.
         </p>
 
         <dl className="mt-16 space-y-8 border-t border-zinc-200 pt-10 dark:border-zinc-800">
