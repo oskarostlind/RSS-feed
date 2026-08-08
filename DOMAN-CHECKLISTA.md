@@ -1,72 +1,66 @@
 # Sätta igång kundnytt.se
 
-Koden är klar och väntar på fyra miljövariabler. Inget behöver deployas om — allt
-styrs av variabler, och Vercel startar om funktionerna när de sparas.
+Webbdomänen är klar sedan 2026-08-08 — se avsnitt 6. Det som återstod var
+mejlleveransen, och den är löst med **Strato-brevlådan i stället för Brevo**.
 
-Ordningen spelar roll: **domänen måste vara verifierad hos Brevo innan du sätter
-`EMAIL_FROM`.** Sätter du avsändaren för tidigt skickar tjänsten från en domän
-som ännu inte får skicka, och de mejlen studsar.
+Skälet till bytet är att du redan betalar för Strato-mejlen och redan äger
+domänen där. Brevo hade betytt ett konto till, en DNS-omgång till, och en
+leverantör till att hålla reda på — för samma sak. Koden brydde sig aldrig:
+`transport.ts` väljer SMTP så fort `SMTP_HOST` är satt, oavsett vem som står
+bakom.
+
+**Kvar att veta:** Strato publicerar inget sändningstak per dygn. En vanlig
+brevlåda är byggd för människor, inte för utskick. Med en handfull användare
+spelar det ingen roll, men fråga supporten innan volymen växer — och byt då
+till en riktig utskickstjänst, vilket är fyra variabler och ingen kodändring.
 
 ---
 
-## 1. Brevo — skapa konto och lägg till domänen
+## 1. Strato — brevlådan ~~återstår~~ **klar 2026-08-08**
 
-1. Skapa konto på [brevo.com](https://www.brevo.com). Gratisnivån ger 300 mejl
-   per dygn, vilket är tio gånger vad tjänsten behöver med en handfull
-   användare.
-2. Gå till **Senders, Domains & Dedicated IPs → Domains → Add a domain**.
-3. Ange `mail.kundnytt.se`. Alltså subdomänen, inte roten — går något fel
-   med avsändarryktet träffar det inte huvuddomänen, och du kan lägga en
-   striktare DMARC-policy på roten senare.
-4. Brevo visar tre eller fyra DNS-poster. Ha dem framme till nästa steg.
+`notiser@kundnytt.se` skapad under **E-post**. Paketet rymmer 26 brevlådor.
 
-## 2. Strato — lägg in DNS-posterna
+## 2. Strato — SPF ~~återstår~~ **klar 2026-08-08**
 
-Under **Domäner → kundnytt.se → DNS-inställningar**.
+Under **Domännamn → kundnytt.se → DNS → TXT- och CNAME-poster**, valet
+**STRATO SPF-regel** satt till *"Standard STRATO e-postserver"*. Den stod på
+*"Ingen"*, och utan den sorteras mejlen som skräppost oavsett hur rätt allt
+annat är. DMARC låg redan på Stratos standardregel.
 
-Posterna Brevo ger dig ser ut ungefär så här. **Använd Brevos egna värden**, inte
-dessa — de är bara till för att du ska känna igen formen:
+Att SPF här är en radioknapp och inte en handskriven TXT-post är hela vinsten
+med att mejla från samma leverantör som äger DNS:en.
 
-| Typ | Namn | Värde |
-|---|---|---|
-| TXT | `brevo-code.mail` | verifieringssträngen från Brevo |
-| TXT | `mail` | `v=spf1 include:spf.brevo.com mx ~all` |
-| TXT | `mail._domainkey.mail` | DKIM-nyckeln från Brevo |
-| TXT | `_dmarc.mail` | `v=DMARC1; p=none; rua=mailto:oskarandreassen01@gmail.com` |
+## 3. Strato — serveradresserna
 
-Två fällor med Strato:
+Står i **E-post → notiser@kundnytt.se → Server för inkommande/utgående e-post**.
+Värdnamnet är `smtp.strato.com` — inte `.se` och inte `.de`, vilket är värt att
+notera eftersom Stratos egen FAQ säger `.de`. Läs alltid av panelen.
 
-- **Strato lägger till domänen automatiskt.** Skriver du `mail.kundnytt.se`
-  i namnfältet blir posten `mail.kundnytt.se.kundnytt.se`. Skriv bara
-  `mail`.
-- **Spridningen tar 15 minuter till några timmar.** Verifierar Brevo inte direkt
-  är det oftast bara att vänta, inte att posten är fel.
-
-`p=none` i DMARC är avsiktligt till att börja med: den rapporterar men blockerar
-inget. Skärp till `p=quarantine` när du sett några veckors rapporter utan
-problem.
-
-## 3. Brevo — SMTP-nycklar
-
-**SMTP & API → SMTP**. Där finns värdnamn, port, användarnamn och en
-lösenordsnyckel du får generera. Nyckeln visas en gång.
-
-## 4. Vercel — miljövariabler
+## 4. Vercel — miljövariabler ~~återstår~~ **klara 2026-08-08**
 
 Projektet `rss-feed`, **Settings → Environment Variables**, Production:
 
 | Variabel | Värde |
 |---|---|
-| `SMTP_HOST` | `smtp-relay.brevo.com` |
-| `SMTP_PORT` | `587` |
-| `SMTP_USER` | ditt Brevo-SMTP-användarnamn |
-| `SMTP_PASS` | SMTP-nyckeln |
-| `EMAIL_FROM` | `Kundnytt <notiser@mail.kundnytt.se>` |
+| `SMTP_HOST` | `smtp.strato.com` |
+| `SMTP_PORT` | `465` |
+| `SMTP_USER` | `notiser@kundnytt.se` |
+| `SMTP_PASS` | lösenordet på brevlådan |
+| `EMAIL_FROM` | `notiser@kundnytt.se` |
+| `APP_URL` | `https://www.kundnytt.se` |
+
+`EMAIL_FROM` är med flit **bara adressen**. `resolveSender` lägger på
+avsändarnamnet när det saknas, vilket undviker citattecken i ett fält som inte
+hanterar dem väl.
+
+**Variabler slår igenom först vid nästa deploy.** De bakas in vid bygget, så
+att spara dem räcker inte — det stod fel här tidigare. Pusha något, eller
+tryck Redeploy.
 
 Passa samtidigt på att **rätta eller ta bort `AUTH_URL`**. Värdet är
 `https://rss-feed-lime.vercel.` — en avklippt inklistring. Koden har ett
 skyddsnät som ignorerar den, men skyddsnätet täcker just det felmönstret och
-inte alla.
+inte alla. Rätt värde är numera `https://www.kundnytt.se`.
 
 ## 5. Kontrollera
 
