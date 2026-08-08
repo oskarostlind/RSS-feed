@@ -3,6 +3,35 @@
 Vad de automatiska körningarna gjort, senast överst. Kort med flit — det här är
 överblicken, inte dokumentationen. Den ligger i `PROJECT.md`.
 
+## 2026-08-08 14:14 — mejlet går från egen domän
+
+**Gjort:** utskicken flyttade från Resends sandlådedomän till Strato-brevlådan
+`notiser@kundnytt.se` över SMTP. Oskar skapade brevlådan, satte SPF och lade in
+variablerna; jag satte `SMTP_HOST` och `SMTP_PORT` och skrev om checklistan.
+
+**Beslut:** Strato i stället för Brevo. Brevo hade betytt ett konto till, en
+DNS-omgång till och en leverantör till — för samma sak som en brevlåda han
+redan betalar för. Koden brydde sig aldrig; `transport.ts` väljer SMTP så fort
+`SMTP_HOST` är satt.
+
+**Mätning:** `vag: smtp`, `smtp.strato.com:465`, `verifieradDoman: true`, och
+ett skarpt utskick accepterat med id på `@kundnytt.se`. SPF ligger ute som
+`v=spf1 redirect=_spf.strato.com`.
+
+**Inte klart:** SMTP-accept är inte leverans. Exakt det felet kostade 7 augusti
+— Resend sa `delivered` och Gmail kastade mejlen ändå. Punkten är öppen tills
+ett mejl setts i en inkorg.
+
+**Fälla som är värd att komma ihåg:** Stratos standard-DMARC är `p=reject`, inte
+`p=none`. Rätt nu, men den dagen utskicken byter leverantör slutar all post
+komma fram i samma sekund om inte SPF ändras i samma vända.
+
+**Kostade tid:** checklistan påstod att miljövariabler slår igenom direkt. Det
+gör de inte — de bakas in vid bygget, och första mätningen sa fortfarande
+`resend`. Rättat i dokumentet.
+
+---
+
 ## 2026-08-08 10:40 — sajten är live på kundnytt.se
 
 **Byggt:** `72a09fc` — laddningstillstånd på varje formulär och en mobilvy som

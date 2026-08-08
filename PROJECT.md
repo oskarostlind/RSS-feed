@@ -48,7 +48,7 @@ Status 2026-08-07:
 | Kostnadstak per användare | **Byggt.** Portföljtak härlett ur körningens kapacitet, se avsnitt 6 |
 | Missbruksskydd | **Byggt.** Tak för inloggningsmejl, se nedan |
 | GDPR-hantering | **Byggt.** Radering, export och integritetspolicy |
-| Verifierad mejldomän | **Väntar på Brevo.** Webbdomänen är live på `www.kundnytt.se` sedan 2026-08-08, men *mejldomänen* `mail.kundnytt.se` är en separat sak och återstår — se `DOMAN-CHECKLISTA.md` |
+| Verifierad mejldomän | **Byggt 2026-08-08.** Utskicken går via Strato-brevlådan `notiser@kundnytt.se` över SMTP, med SPF publicerad. Brevo valdes bort — se `DOMAN-CHECKLISTA.md`. **Väntar på en bekräftelse att mejlet landade i inkorgen**, se avsnitt 6 |
 
 **Öppen registrering kan byggas färdig utan mejldomänen, men inte släppas utan
 den.** Nya användare loggar in med magisk länk. Utan verifierad domän hamnar
@@ -317,12 +317,24 @@ Tre åtgärder lagda: avsändarnamn (`Omvärldsbevakare <...>`), textalternativ 
 alla utskick, och ett kvitto på inloggningssidan som säger åt användaren att
 titta i skräpposten.
 
-**Åtgärderna är sannolika men obevisade.** Testutskicken talar för att de
-räcker, men ett skarpt inloggningsmejl efter ändringen har inte kunnat mätas —
-se ARBETSLOGG.md. Och även om de räcker är de plåster: det enda som gör
-mejlleveransen förutsägbar är en verifierad egen domän med SPF, DKIM och DMARC,
-vilket kräver DNS-åtkomst. Så länge det inte är gjort är inloggningen inte något
-att bygga vidare på.
+**Sandlådan är ersatt 2026-08-08.** Utskicken går numera över SMTP från
+`notiser@kundnytt.se`, en riktig Strato-brevlåda på egen domän, med SPF
+publicerad (`v=spf1 redirect=_spf.strato.com`). `/api/debug/email-test` svarar
+`vag: smtp` och `verifieradDoman: true`, och ett skarpt utskick accepterades med
+ett meddelande-id på `@kundnytt.se`.
+
+**Men SMTP-accept är inte leverans.** Det var precis det felet som kostade
+2026-08-07: Resend rapporterade `delivered` för varje inloggningsmejl, och
+Gmail hade ändå kastat dem utan att lägga dem i någon mapp. Punkten räknas som
+klar först när ett mejl setts i en inkorg — och det bästa provet är fortfarande
+att logga ut och begära en ny inloggningslänk.
+
+**DMARC står på `p=reject`.** Det är Stratos standardregel, och den är
+strängare än de `p=none` checklistan tidigare föreslog. Rätt så länge vi bara
+skickar via Strato, eftersom SPF då stämmer. **Men den dagen utskicken flyttas
+till en annan leverantör slutar all post komma fram i samma sekund**, inte
+gradvis — SPF måste uppdateras i samma vända som `SMTP_HOST`. Det är den
+enskilt lättaste vägen att sänka tjänsten tyst.
 
 **Ingen kostnadskontroll per användare.** Med öppen registrering kan en
 användare lägga in obegränsat många bolag.
@@ -541,7 +553,7 @@ det mesta på den kan göras efter lansering. Detta kan det inte.
 
 | # | Hinder | Vem löser | Kan lanseras utan? |
 |---|---|---|---|
-| 1 | Verifierad mejldomän (§9.8) | Oskar, pågår hos Strato | **Nej.** Ingen ny användare kommer in alls |
+| 1 | ~~Verifierad mejldomän (§9.8)~~ | **Byggt 2026-08-08**, Strato-SMTP | Bekräfta inkorgsleverans först |
 | 2 | Kriterium 2 — sju dygn i rad (§4) | Tid, efter 1 | **Nej.** Fas 1 är inte belagd förrän det är mätt |
 | 3 | ~~Kapaciteten räcker för fler än ett konto (§6)~~ | **Byggt 2026-08-08.** Fan-out, se §6 | Sätt `DISCOVERY_SHARDS` före lansering |
 | 4 | Beslut om registreringsläge (§9.18) | Oskar | Nej, men det är ett beslut på fem sekunder |
@@ -588,9 +600,10 @@ verifierats**, inte tidigare.
    vilket en automatisk körning inte kan göra. Parsningen är verifierad i
    produktionsmiljön via `/api/debug/import-test`, men själva formuläret har
    ingen människa provat
-8. **Verifierad mejldomän i Resend — högsta prioritet av det som återstår.**
-   Inloggningen är i praktiken trasig utan den: mejlen levereras men hamnar i
-   skräpposten, se avsnitt 6. Kräver en egen domän och DNS-åtkomst
+8. ~~**Verifierad mejldomän**~~ — **byggt 2026-08-08.** Strato-brevlåda på egen
+   domän över SMTP, SPF publicerad, skarpt utskick accepterat. Brevo valdes
+   bort. **Kvar: bekräfta att ett mejl faktiskt landar i en inkorg** — SMTP-
+   accept är inte leverans, se avsnitt 6
 9. ~~Mät GNews täckning över flera **lokala** bolag och slå av den om bilden
    håller~~ — **klart 2026-08-07.** Mätt över åtta bolag, GNews avstängd som
    standard. Se avsnitt 7
