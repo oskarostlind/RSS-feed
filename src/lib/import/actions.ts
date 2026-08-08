@@ -9,8 +9,13 @@ import {
 import {
   buildImportPreview,
   guessNameColumn,
-  type ImportPreview,
 } from "@/lib/import/buildImportPreview";
+import {
+  EMPTY_COMMIT_STATE,
+  EMPTY_PREVIEW_STATE,
+  type CommitState,
+  type PreviewState,
+} from "@/lib/import/importState";
 import { cleanImportedName, companyMatchKey } from "@/lib/import/normalizeCompanyName";
 import { parseCsv } from "@/lib/import/parseCsv";
 import { parseXlsx, XlsxError } from "@/lib/import/parseXlsx";
@@ -38,29 +43,9 @@ const MAX_FILE_BYTES = 2 * 1024 * 1024;
  */
 const MAX_IMPORT_ROWS = 500;
 
-export interface PreviewState {
-  status: "idle" | "ready" | "error";
-  error: string | null;
-  /** Rubrikraden, för kolumnväljaren. */
-  headers: string[];
-  columnIndex: number;
-  hasHeaderRow: boolean;
-  preview: ImportPreview | null;
-  /** Filens rader, så att kolumnbytet inte kräver att filen laddas upp igen. */
-  rows: string[][];
-  fileName: string | null;
-}
-
-export const EMPTY_PREVIEW_STATE: PreviewState = {
-  status: "idle",
-  error: null,
-  headers: [],
-  columnIndex: 0,
-  hasHeaderRow: true,
-  preview: null,
-  rows: [],
-  fileName: null,
-};
+// Tillstånden och deras utgångsvärden ligger i `importState.ts`. En
+// `"use server"`-fil får bara exportera asynkrona funktioner — se den filen för
+// vad det kostade att ha dem här.
 
 function errorState(message: string): PreviewState {
   return { ...EMPTY_PREVIEW_STATE, status: "error", error: message };
@@ -204,20 +189,6 @@ export async function previewImport(
     fileName,
   };
 }
-
-export interface CommitState {
-  status: "idle" | "done" | "error";
-  created: number;
-  skipped: number;
-  error: string | null;
-}
-
-export const EMPTY_COMMIT_STATE: CommitState = {
-  status: "idle",
-  created: 0,
-  skipped: 0,
-  error: null,
-};
 
 /**
  * Skapar bevakningarna.

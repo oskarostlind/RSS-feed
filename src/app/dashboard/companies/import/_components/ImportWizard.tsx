@@ -2,13 +2,12 @@
 
 import Link from "next/link";
 import { useActionState } from "react";
+import { commitImport, previewImport } from "@/lib/import/actions";
+import type { ImportRow, ImportRowStatus } from "@/lib/import/buildImportPreview";
 import {
-  commitImport,
   EMPTY_COMMIT_STATE,
   EMPTY_PREVIEW_STATE,
-  previewImport,
-} from "@/lib/import/actions";
-import type { ImportRow, ImportRowStatus } from "@/lib/import/buildImportPreview";
+} from "@/lib/import/importState";
 
 /**
  * Två formulär, inte ett flerstegsflöde med eget tillstånd.
