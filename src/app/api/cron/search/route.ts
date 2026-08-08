@@ -115,6 +115,28 @@ function logSourceHealth(health: SourceHealthReport): void {
   }
 }
 
+/**
+ * `?shards=N` går förbi `DISCOVERY_SHARDS` för den här körningen.
+ *
+ * Finns för att fan-out ska gå att mäta skarpt innan miljövariabeln sätts. En
+ * arkitekturändring i morgonjobbet som aldrig körts i produktion är inte
+ * byggd, bara skriven — och att slå på den för alla morgnar som ett *sätt* att
+ * prova den vore att prova den kl 07 när ingen tittar.
+ *
+ * Rutten kräver redan `CRON_SECRET`, så parametern öppnar inget nytt.
+ */
+function parseShardOverride(request: Request): number | undefined {
+  const raw = new URL(request.url).searchParams.get("shards");
+
+  if (!raw) {
+    return undefined;
+  }
+
+  const parsed = Number(raw);
+
+  return Number.isFinite(parsed) && parsed > 0 ? Math.floor(parsed) : undefined;
+}
+
 export async function GET(request: Request): Promise<NextResponse> {
   const unauthorized = verifyCronSecret(request);
   if (unauthorized) {
@@ -122,13 +144,19 @@ export async function GET(request: Request): Promise<NextResponse> {
   }
 
   try {
-    const result = await executeDiscoveryJob();
-    const deliveries: EmailDeliveryReport[] = [];
-
     // Härleds en gång per körning, inte per användare. Requesten är cron-
     // anropet från Vercel och bär därför produktionsvärden — se `appUrl.ts`
     // för varför den vägen är pålitligare än AUTH_URL just i det här projektet.
+    //
+    // Behövs numera före körningen och inte bara till mejllänkarna: delas
+    // körningen är det den här adressen tjänsten anropar sig själv på.
     const appBaseUrl = resolveAppBaseUrl(request);
+
+    const result = await executeDiscoveryJob({
+      baseUrl: appBaseUrl,
+      shards: parseShardOverride(request),
+    });
+    const deliveries: EmailDeliveryReport[] = [];
 
     // Instansieras en gång — men bara om det finns något att mejla, så att en
     // saknad RESEND_API_KEY inte sänker en körning utan nya artiklar.

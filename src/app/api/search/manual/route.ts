@@ -24,7 +24,7 @@ export async function POST(request: Request): Promise<NextResponse> {
       companyId = undefined;
     }
 
-    const result = await executeDiscoveryJob(companyId);
+    const result = await executeDiscoveryJob({ companyId });
     return NextResponse.json(result);
   } catch (error) {
     if (error instanceof Error && error.message === "COMPANY_NOT_FOUND") {

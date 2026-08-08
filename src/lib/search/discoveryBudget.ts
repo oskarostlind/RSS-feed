@@ -25,6 +25,8 @@
  * står öppen när det här taket faktiskt nås.
  */
 
+import { resolveShardCount } from "@/lib/search/discoveryShards";
+
 const DEFAULT_CONCURRENCY = 5;
 
 /**
@@ -97,16 +99,25 @@ const HARD_CEILING = 1_000;
  * Hur många bolag en morgonkörning rimligen hinner med.
  *
  * Ligger här och inte bland bolagsfunktionerna, eftersom det är en egenskap hos
- * körningen och inte hos portföljen: höjs `DISCOVERY_CONCURRENCY` följer taket
- * med automatiskt. Det är meningen — den som vill bevaka fler bolag ska först
- * göra körningen snabbare.
+ * körningen och inte hos portföljen: höjs `DISCOVERY_CONCURRENCY` eller
+ * `DISCOVERY_SHARDS` följer taket med automatiskt. Det är meningen — den som
+ * vill bevaka fler bolag ska först göra körningen snabbare eller bredare, inte
+ * skriva upp en siffra.
  *
- * Med standardvärdena blir taket 110 bolag. Målbildens avsnitt 1 talar om "över
- * 100 bolag", så standardinställningen ligger precis på gränsen; en riktig
- * portfölj kräver att parallelliteten höjs.
+ * Tre faktorer, i den ordning de betyder något:
+ *
+ * 1. **Delarna.** Varje del är en egen funktion med egna 60 sekunder, och de
+ *    går samtidigt. Det är den enda faktorn som höjer taket i stället för att
+ *    utnyttja det befintliga bättre — se `discoveryShards.ts`.
+ * 2. **Parallelliteten.** Hur många bolag som bearbetas i taget inom en del.
+ * 3. **Tidsbudgeten** delat med vad en grupp kostar.
+ *
+ * Med standardvärdena — en del, parallellitet fem, 45 sekunder — blir taket
+ * 110 bolag, alltså oförändrat mot före fan-out. Med fyra delar blir det 440.
  */
 export function resolveDiscoveryCapacity(
   explicitRaw: string | undefined = process.env.MAX_COMPANIES_PER_USER,
+  shardCount: number = resolveShardCount(),
 ): number {
   const explicit = Number(explicitRaw);
 
@@ -115,9 +126,10 @@ export function resolveDiscoveryCapacity(
   }
 
   const groupsPerRun = Math.floor(resolveBudgetMs() / MS_PER_GROUP);
+  const perShard = groupsPerRun * resolveConcurrency();
 
   return Math.min(
-    Math.max(groupsPerRun * resolveConcurrency(), 50),
+    Math.max(perShard * Math.max(shardCount, 1), 50),
     HARD_CEILING,
   );
 }

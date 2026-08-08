@@ -110,7 +110,7 @@ export async function searchNewsForCompany(
       };
     }
 
-    const job = await executeDiscoveryJob(companyId);
+    const job = await executeDiscoveryJob({ companyId });
     const result = job.results[0];
 
     if (!result) {
