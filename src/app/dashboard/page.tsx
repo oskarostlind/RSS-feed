@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { NewsInboxCard } from "@/app/dashboard/_components/NewsInboxCard";
+import { ReadAllButton } from "@/app/dashboard/_components/ReadAllButton";
 import { auth } from "@/lib/auth";
 import { getPortfolioCapacity } from "@/lib/companies/portfolioLimit";
 import { getPendingNewsItems } from "@/lib/news/queries";
@@ -37,9 +38,15 @@ export default async function DashboardPage() {
               Granska nyheter som väntar på ditt beslut.
             </p>
           </div>
-          <span className="rounded-full bg-amber-100 px-3 py-1 text-sm font-medium text-amber-900 dark:bg-amber-950 dark:text-amber-200">
-            {pendingItems.length} att granska
-          </span>
+          {/* Räknaren och "Läs alla" hör ihop: knappen betyder inget utan
+              antalet den kommer att röra, och antalet är det enda som gör
+              bekräftelsefrågan begriplig. */}
+          <div className="flex flex-wrap items-center gap-3">
+            <span className="rounded-full bg-amber-100 px-3 py-1 text-sm font-medium text-amber-900 dark:bg-amber-950 dark:text-amber-200">
+              {pendingItems.length} att granska
+            </span>
+            <ReadAllButton count={pendingItems.length} />
+          </div>
         </div>
       </header>
 
