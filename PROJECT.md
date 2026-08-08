@@ -249,12 +249,31 @@ RSS-träffar och 25 jobbannonser. Det räcker inte för att extrapolera till 100
 bolag med säkerhet, men flaskhalsen är nätverksväntan och den parallelliseras
 nu.
 
-**Kvarstår:** taket är höjt, inte borttaget. Vid några hundra bolag krävs
-fan-out till parallella funktioner — tjänsten anropar sig själv så att varje
-delmängd får egna 60 sekunder. Det valdes bort nu därför att det lägger till en
-självanropande nätverksväg och en ny säkerhetsyta för ett tak som ännu inte
-nåtts. Vercel Hobbys *en körning per dygn* är fortfarande en separat gräns som
-bara Pro löser.
+**Fan-out är byggd 2026-08-08.** Tjänsten kan anropa sig själv så att varje
+delmängd bolag får egna 60 sekunder, och delarna går samtidigt. Kapaciteten blir
+antalet delar gånger vad en del hinner — 110 med en del, 440 med fyra.
+
+**Förvalet är en del, alltså oförändrat beteende.** Med en del görs inget
+nätverksanrop alls. `DISCOVERY_SHARDS` slår på det utan deploy, och `?shards=N`
+på cron-rutten kör en enskild körning delad utan att röra variabeln. Det senare
+finns för att arkitekturen ska gå att mäta skarpt utan att slås på för alla
+morgnar — att prova den kl 07 när ingen tittar vore fel ordning.
+
+De två invändningar som gjorde att fan-out valdes bort tidigare står kvar, men
+är hanterade. En del som inte svarar får inte sin markör flyttad, så dess bolag
+ligger först i nästa körning i stället för att sänka morgonen; det rapporteras
+som `shardsFailed`. Och delrutten kräver samma `CRON_SECRET` som morgonjobbet,
+eftersom den startar exakt samma arbete.
+
+Mätt 2026-08-08 med två delar: `shards: 2`, `shardsFailed: 0`, båda bolagen
+sökta, källhälsan korrekt summerad över delarna och `created: 0 / skipped: 122`
+i andra körningen. **Ännu inte mätt med en portfölj stor nog att kräva
+delningen** — det som är bevisat är att vägen fungerar, inte att den håller vid
+400 bolag.
+
+**Kvar:** Vercel Hobbys *en körning per dygn* är en separat gräns som bara Pro
+löser. Fan-out höjer hur många bolag en körning hinner med, inte hur ofta den
+får köras.
 
 Massimporten och kö-arkitekturen hänger fortfarande ihop, men mindre hårt än
 förut: en Excel med 150 rader spräcker inte längre körningen, den fördelas över
@@ -524,15 +543,19 @@ det mesta på den kan göras efter lansering. Detta kan det inte.
 |---|---|---|---|
 | 1 | Verifierad mejldomän (§9.8) | Oskar, pågår hos Strato | **Nej.** Ingen ny användare kommer in alls |
 | 2 | Kriterium 2 — sju dygn i rad (§4) | Tid, efter 1 | **Nej.** Fas 1 är inte belagd förrän det är mätt |
-| 3 | Kapaciteten räcker för fler än ett konto (§6) | Kod eller Vercel Pro | **Nej.** 110 bolag *totalt*, inte per konto |
+| 3 | ~~Kapaciteten räcker för fler än ett konto (§6)~~ | **Byggt 2026-08-08.** Fan-out, se §6 | Sätt `DISCOVERY_SHARDS` före lansering |
 | 4 | Beslut om registreringsläge (§9.18) | Oskar | Nej, men det är ett beslut på fem sekunder |
 | 5 | En källa som inte är Google eller Bing (§7) | Kod, blockerad av Bolagsverket | Ja, med risk |
 | 6 | Upphovsrätt, DSM artikel 15 (§7) | Jurist | Ja om gratis, **nej om betalt** |
-| 7 | Byta mejladress i gränssnittet (§9.20) | Kod | Ja, men det blir supportärenden |
+| 7 | ~~Byta mejladress i gränssnittet (§9.20)~~ | **Byggt 2026-08-08** | — |
 
-**Punkt 3 är den som lättast förbises**, eftersom den inte syns förrän det finns
-mer än en användare — och då syns den inte som ett fel utan som att bevakningen
-blir en dag gammal. Se avsnitt 6.
+**Punkt 3 var den som lättast förbisågs**, eftersom den inte syns förrän det
+finns mer än en användare — och då syns den inte som ett fel utan som att
+bevakningen blir en dag gammal. Vägen förbi finns nu i koden, men **förvalet är
+fortfarande en del.** Kapaciteten höjs den dagen `DISCOVERY_SHARDS` sätts i
+Vercel, inte av att fan-out är byggd. Det är avsiktligt — arkitekturen ska
+mätas innan den blir varje morgons väg — men det betyder att punkten inte är
+avbockad förrän variabeln är satt.
 
 **Punkt 2 kan inte skyndas.** Sju dygn är sju dygn, och räkningen börjar om
 varje gång databasen byts. Den börjar först när punkt 1 är klar, så den sätter
@@ -554,8 +577,9 @@ verifierats**, inte tidigare.
 4. ~~Jobbannonser via JobTech~~ — **klart 2026-08-07.** Egen modell `JobAd`,
    arbetsgivarspärr, egen sektion i mejlet, avstängbar med `JOBTECH_ENABLED`.
    Diagnostik på `/api/debug/jobtech-test`
-5. ~~Kö-arkitektur för 100+ bolag~~ — **delvis klart 2026-08-07.**
-   Parallellisering, tidsbudget och markör, se avsnitt 6. Fan-out återstår
+5. ~~Kö-arkitektur för 100+ bolag~~ — **klart 2026-08-08.** Parallellisering,
+   tidsbudget och markör 2026-08-07; fan-out 2026-08-08, se avsnitt 6.
+   **Avstängd som förval** — `DISCOVERY_SHARDS` sätter på den
 6. ~~Larm när en källa tystnar~~ — **klart 2026-08-07.** Härlett ur körningen,
    tabelltestat, och mejlas till `ADMIN_EMAIL` vid `silent` eller `failing`.
    Se avsnitt 7
@@ -604,8 +628,22 @@ verifierats**, inte tidigare.
     Det här behöver bestämmas **innan** mejldomänen verifieras, inte efter.
     Idag hindras en främling bara av att mejlet inte kommer fram; den dagen
     punkt 8 är löst faller den spärren över en natt
-20. **Gränssnittsluckor som inte blockerar.** Ingen väg att byta mejladress,
-    inga laddningstillstånd, mobilvyn obeprövad. *Avregistreringslänken är
-    klar 2026-08-08* — se avsnitt 6
+20. **Gränssnittsluckor som inte blockerar.** Kvar: inga laddningstillstånd,
+    mobilvyn obeprövad. *Avregistreringslänken klar 2026-08-08* — se avsnitt 6.
+    *Byte av mejladress klart 2026-08-08* — se nedan
+
+    **Byte av mejladress** sker i två steg: bekräftelselänken går till den
+    **nya** adressen och kontot flyttas först när någon klickat på den. Skälet
+    är att adressen inte är en kontaktuppgift utan inloggningsuppgiften — med
+    magisk länk finns inget lösenord att falla tillbaka på, så ett byte som slog
+    igenom direkt skulle göra en felstavning permanent.
+
+    Länken bär sin egen behörighet på samma sätt som avregistreringen: HMAC över
+    `AUTH_SECRET`, ingen tabell och ingen migration. Signaturen räknas över
+    kontots *nuvarande* adress, vilket gör den engångs utan att förbrukning
+    behöver lagras — efter bytet verifierar den inte längre, så en gammal länk
+    kan inte rulla tillbaka ett senare byte. Bekräftelsesidan ligger på
+    `/byt-mejl`, utanför `/dashboard`, eftersom den layouten omdirigerar
+    utloggade till inloggningen.
 19. ~~Byt utskicksväg så att leverantören går att välja~~ — **klart
     2026-08-07.** SMTP eller Resend, styrt av miljön

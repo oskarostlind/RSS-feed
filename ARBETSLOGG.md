@@ -3,6 +3,61 @@
 Vad de automatiska körningarna gjort, senast överst. Kort med flit — det här är
 överblicken, inte dokumentationen. Den ligger i `PROJECT.md`.
 
+## 2026-08-08 09:56 — de två sista hindren som var kod
+
+Körningen började med att `.git/index.lock` låg kvar från en tidigare session
+och blockerade all git. Den gick inte att ta bort utan att du godkände det, så
+den första halvan av natten gjorde ingenting alls. **Värt att veta för
+framtiden:** ett kvarglömt lås tystar en hel körning utan att något går sönder.
+
+Hälsan grön hela tiden: Peges-förvärvet hittas, 15 träffar (google 12, bing 3).
+
+**Byggt:**
+
+- `e68d828` — **byte av mejladress**, §9-tabellens punkt 7. Två steg:
+  bekräftelselänken går till den *nya* adressen och kontot flyttas först när
+  någon klickat. Adressen är inloggningsuppgiften i den här tjänsten, så ett
+  byte som slog igenom direkt hade gjort en felstavning permanent — användaren
+  märker ingenting förrän sessionen går ut, och då finns ingen väg in.
+  Signaturen räknas över kontots nuvarande adress, vilket gör länken engångs
+  gratis. Sidan ligger på `/byt-mejl`, utanför `/dashboard`.
+- `1bbae88` — **fan-out**, §9-tabellens punkt 3. *Gissning på
+  arkitekturnivå, se nedan.*
+
+**Gissningen:** att bygga fan-out alls. PROJECT.md §6 hade valt bort den med
+två invändningar — en självanropande nätverksväg och en ny säkerhetsyta — men
+§9-tabellen listar samtidigt kapaciteten som ett lanseringshinder som bara kod
+eller Vercel Pro löser. Jag byggde den och hanterade båda invändningarna
+uttryckligen: en del som inte svarar får inte sin markör flyttad och ligger
+först nästa körning, och delrutten kräver samma `CRON_SECRET` som morgonjobbet.
+
+Alternativet var att låta punkt 3 vänta på att du köper Pro. Reverta `1bbae88`
+ensam om du hellre vill det — `e68d828` står på egna ben.
+
+**Förvalet är en del, alltså exakt dagens beteende.** Fan-out gör ingenting
+förrän `DISCOVERY_SHARDS` sätts i Vercel. Det var med flit: en arkitekturändring
+i morgonjobbet ska inte provas första gången kl 07 när ingen tittar. `?shards=N`
+på cron-rutten kör en enskild körning delad, och det är så jag mätte den.
+
+**Mätning före och efter:** odelad körning `shards: 1, created: 0, skipped: 122`.
+Delad körning direkt efter: `shards: 2, shardsFailed: 0`, båda bolagen sökta,
+`created: 0, skipped: 122`, och källhälsan korrekt summerad över delarna —
+google-rss rapporterar `companiesQueried: 2` fast varje del bara såg ett bolag.
+Det sista är beviset på att sammanslagningen fungerar; utan den hade en källa
+som var tyst i en del larmat som nere.
+
+**Vad som inte är mätt:** att delningen håller vid 400 bolag. Portföljen är två
+bolag, så det som är bevisat är att vägen fungerar, inte att den bär.
+
+**Blockerat, oförändrat:** mejldomänen (DNS, din), sju dygn i rad (tid),
+Bolagsverket (registrering), DSM artikel 15 (jurist), och beslutet om
+`SIGNUP_MODE`.
+
+**Trasigt när jag slutade:** ingenting. 123 tester gröna, tsc och eslint rena.
+Inga testbolag skapade, inget städat undan.
+
+---
+
 ## 2026-08-08 00:55 — kapacitetstaket räknade fel
 
 Du frågade vad som återstår före en bred lansering. Svaret står nu i
