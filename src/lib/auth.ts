@@ -1,197 +1,103 @@
-import { PrismaAdapter } from "@auth/prisma-adapter";
-import NextAuth from "next-auth";
-import Email from "next-auth/providers/email";
 import { redirect } from "next/navigation";
-import {
-  isSignInAllowed,
-  resolveSignupMode,
-} from "@/lib/auth/signupPolicy";
-import { resolveFromAddress } from "@/lib/email/sender";
-import { sendEmail } from "@/lib/email/transport";
+import { cookies, headers } from "next/headers";
 import { prisma } from "@/lib/prisma";
 
 /**
- * Avsändaren hämtas ur den gemensamma konfigurationen i `email/sender.ts`.
+ * Sessionsläsning. Tjänstens enda källa till "vem är inloggad".
  *
- * Låg tidigare hårdkodad här och en gång till i `EmailService`. Två ställen
- * betyder att domänbytet kan göras halvt, och just inloggningsmejlet är det som
- * absolut inte får bli kvar på sandlådedomänen — det är det enda mejl en ny
- * användare måste få för att komma in alls.
+ * **Auth.js är borttaget ur körvägen 2026-08-08.** Modulen exporterade tidigare
+ * `auth()` och `getRequiredUserId()` från NextAuth med en e-postleverantör för
+ * magiska länkar. Signaturerna är oförändrade med flit — fjorton anropare i
+ * appen importerar dem, och ingen av dem behövde röras.
+ *
+ * Tre skäl till att det försvann:
+ *
+ * 1. **Magiska länkar spärrades av Chrome.** 2026-08-08 mötte en av tjänstens
+ *    egna inloggningslänkar "Farlig webbplats". Domänen var inte spärrlistad —
+ *    det var formen: ny domän, länk via mejl, lång hex-token, mejladress i
+ *    klartext och en parameter som pekade vidare till en annan URL.
+ * 2. **`/api/auth/signin/email` var en öppen utskicksväg.** Rutten gick att
+ *    anropa direkt och skicka ett inloggningsmejl till vilken adress som helst.
+ *    Missbruksspärren låg i serverfunktionen på `/login`, inte i Auth.js egen
+ *    rutt, så den gick att gå förbi. Det är åtgärdat av att rutten inte finns.
+ * 3. **Sessionerna skapades ändå av oss.** Se `auth/session.ts` — Auth.js
+ *    lösenordsväg kräver JWT-sessioner, vilket hade brutit löftet om att en
+ *    GDPR-radering loggar ut i samma stund.
+ *
+ * Paketen `next-auth` och `@auth/prisma-adapter` ligger kvar i package.json men
+ * importeras inte längre. Att avinstallera dem kräver ett `npm install`, och
+ * `node_modules` här är byggt för Windows — se `auth/password.ts` för vad det
+ * kostar att röra det trädet från fel operativsystem. `Account` och
+ * `VerificationToken` står kvar i schemat av samma skäl: att släppa tabeller
+ * är en oåterkallelig migration för att bli av med två tomma tabeller.
  */
-function magicLinkFrom(): string {
-  return resolveFromAddress();
+
+/** Formen anroparna redan förväntar sig. */
+export interface AppSession {
+  user: {
+    id: string;
+    email: string;
+    name: string | null;
+  };
 }
 
-function buildMagicLinkEmailText(url: string): string {
-  return [
-    "Logga in på Kundnytt",
-    "",
-    "Öppna länken nedan för att logga in. Den är giltig i 24 timmar och kan",
-    "bara användas en gång.",
-    "",
-    url,
-    "",
-    "Har du inte begärt någon inloggning kan du bortse från det här mejlet.",
-  ].join("\n");
-}
+async function sessionCookieName(): Promise<string> {
+  const headerList = await headers();
+  const proto = headerList.get("x-forwarded-proto")?.split(",")[0].trim();
+  const secure = proto
+    ? proto === "https"
+    : process.env.NODE_ENV === "production";
 
-function buildMagicLinkEmailHtml(url: string): string {
-  return `<!DOCTYPE html>
-<html lang="sv">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Logga in</title>
-  </head>
-  <body style="margin: 0; padding: 32px 16px; background-color: #f4f4f5; font-family: Arial, Helvetica, sans-serif; color: #18181b;">
-    <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
-      <tr>
-        <td align="center">
-          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width: 480px; background-color: #ffffff; border: 1px solid #e4e4e7; border-radius: 12px;">
-            <tr>
-              <td style="padding: 32px 28px;">
-                <p style="margin: 0 0 8px 0; font-size: 12px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: #71717a;">
-                  Kundnytt
-                </p>
-                <h1 style="margin: 0 0 12px 0; font-size: 24px; line-height: 1.3; color: #18181b;">
-                  Logga in
-                </h1>
-                <p style="margin: 0 0 24px 0; font-size: 15px; line-height: 1.6; color: #52525b;">
-                  Klicka på knappen nedan för att logga in. Länken är giltig i 24 timmar.
-                </p>
-                <a href="${url}" style="display: inline-block; border-radius: 8px; background-color: #18181b; color: #ffffff; font-size: 14px; font-weight: 600; text-decoration: none; padding: 12px 20px;">
-                  Logga in
-                </a>
-                <p style="margin: 24px 0 0 0; font-size: 12px; line-height: 1.5; color: #a1a1aa;">
-                  Om du inte begärde detta mejl kan du ignorera det.
-                </p>
-              </td>
-            </tr>
-          </table>
-        </td>
-      </tr>
-    </table>
-  </body>
-</html>`;
+  // Namnet måste vara detsamma som `auth/session.ts` skriver. Går de isär blir
+  // användaren utloggad direkt efter inloggning, utan felmeddelande.
+  return secure ? "__Secure-authjs.session-token" : "authjs.session-token";
 }
 
 /**
- * Kastar en ogiltig `AUTH_URL` innan Auth.js hinner läsa den.
- *
- * Produktionsmiljön hade `https://rss-feed-lime.vercel.` — en avklippt
- * inklistring som tappat `app`. Auth.js bygger både omdirigeringar och den
- * magiska länken ur det värdet, så varje inloggningsmejl pekade på en adress
- * som inte finns. Ett värdnamn som slutar med punkt kan aldrig vara riktigt.
- *
- * Vi raderar hellre variabeln än litar på den: med `trustHost` härleder Auth.js
- * rätt adress ur requestens `x-forwarded-host`, vilket alltid stämmer på
- * Vercel. Rätta gärna variabeln ändå — det här är ett skyddsnät, inte en fix.
+ * Null när ingen är inloggad. **Kastar aldrig.** Ett databasfel här hade
+ * annars gett en vit sida på varje skyddad sida i tjänsten, och "utloggad" är
+ * ett begripligare utfall än ett stackspår.
  */
-function discardInvalidAuthUrl(): void {
-  const raw = process.env.AUTH_URL?.trim();
+export async function auth(): Promise<AppSession | null> {
+  let sessionToken: string | undefined;
 
-  if (!raw) {
-    return;
+  try {
+    const store = await cookies();
+    sessionToken = store.get(await sessionCookieName())?.value;
+  } catch {
+    return null;
+  }
+
+  if (!sessionToken) {
+    return null;
   }
 
   try {
-    const { hostname } = new URL(raw);
+    const session = await prisma.session.findUnique({
+      where: { sessionToken },
+      select: {
+        expires: true,
+        user: { select: { id: true, email: true, name: true } },
+      },
+    });
 
-    if (!hostname.endsWith(".")) {
-      return;
+    if (!session) {
+      return null;
     }
-  } catch {
-    // Går den inte att tolka som URL är den oanvändbar — fall igenom.
+
+    // Utgången session behandlas som ingen session. Raden städas inte här: en
+    // radering på varje sidvisning vore en skrivning i en läsväg, och utgångna
+    // rader gör ingen skada eftersom de aldrig godkänns.
+    if (session.expires.getTime() <= Date.now()) {
+      return null;
+    }
+
+    return { user: session.user };
+  } catch (error) {
+    console.error("Kunde inte läsa sessionen:", error);
+    return null;
   }
-
-  console.warn(
-    `AUTH_URL är ogiltig ("${raw}") och ignoreras. Adressen härleds från requesten i stället.`,
-  );
-  delete process.env.AUTH_URL;
 }
-
-discardInvalidAuthUrl();
-
-export const { handlers, auth, signIn, signOut } = NextAuth({
-  adapter: PrismaAdapter(prisma),
-  providers: [
-    Email({
-      server: {
-        host: "smtp.resend.com",
-        port: 465,
-        auth: {
-          user: "resend",
-          pass: process.env.RESEND_API_KEY ?? "unused",
-        },
-      },
-      from: magicLinkFrom(),
-      // Egen utskicksväg i stället för Auth.js inbyggda nodemailer-anrop.
-      // Den inbyggda skickar en engelsk standardmall utan textdel, och det är
-      // just avsaknaden av textdel som fick Gmail att kasta mejlen 2026-08-07.
-      sendVerificationRequest: async ({ identifier, url }) => {
-        await sendEmail({
-          from: magicLinkFrom(),
-          to: identifier,
-          subject: "Din inloggningslänk till Kundnytt",
-          html: buildMagicLinkEmailHtml(url),
-          text: buildMagicLinkEmailText(url),
-        });
-      },
-    }),
-  ],
-  session: {
-    strategy: "database",
-  },
-  pages: {
-    signIn: "/login",
-  },
-  callbacks: {
-    /**
-     * Registreringsspärren.
-     *
-     * Ligger i `signIn` och inte i ett formulär eftersom magisk länk gör
-     * inloggning och registrering till samma handling — se `signupPolicy.ts`.
-     * Callbacken körs efter att länken verifierats, alltså efter att adressen
-     * bevisats tillhöra den som klickar.
-     *
-     * Ett fel i databasfrågan släpper igenom. Alternativet vore att låsa ute
-     * alla vid ett tillfälligt databasfel, och `open` är förvalet ändå.
-     */
-    async signIn({ user }) {
-      const email = user.email;
-
-      if (!email) {
-        return true;
-      }
-
-      if (resolveSignupMode() === "open") {
-        return true;
-      }
-
-      try {
-        const existing = await prisma.user.findUnique({
-          where: { email },
-          select: { id: true },
-        });
-
-        if (isSignInAllowed(email, existing !== null)) {
-          return true;
-        }
-
-        console.warn(`Registrering nekad för ${email} (läge: ${resolveSignupMode()}).`);
-        return "/login?nekad=1";
-      } catch (error) {
-        console.error("Kunde inte kontrollera registreringsspärren:", error);
-        return true;
-      }
-    },
-    session({ session, user }) {
-      session.user.id = user.id;
-      return session;
-    },
-  },
-  trustHost: true,
-});
 
 export async function getRequiredUserId(): Promise<string> {
   const session = await auth();

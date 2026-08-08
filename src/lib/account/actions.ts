@@ -6,7 +6,8 @@ import {
   requestEmailChange,
 } from "@/lib/account/changeEmail";
 import { parseExpiresAt } from "@/lib/account/emailChangeToken";
-import { getRequiredUserId, signOut } from "@/lib/auth";
+import { getRequiredUserId } from "@/lib/auth";
+import { destroyUserSession } from "@/lib/auth/session";
 import { prisma } from "@/lib/prisma";
 
 /**
@@ -45,10 +46,10 @@ export async function deleteAccountAction(formData: FormData): Promise<void> {
     redirect("/dashboard/konto?fel=misslyckades");
   }
 
-  // Sessionen ligger i databasen och är redan borta med kaskaden. Det här
-  // rensar kakan, så att användaren inte möts av en session som pekar på ett
-  // konto som inte finns.
-  await signOut({ redirectTo: "/?raderat=1" });
+  // Sessionsraderna är redan borta med kaskaden. Det här rensar kakan, så att
+  // användaren inte möts av en session som pekar på ett konto som inte finns.
+  await destroyUserSession();
+  redirect("/?raderat=1");
 }
 
 /**

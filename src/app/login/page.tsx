@@ -12,7 +12,6 @@ import { SubmitButton } from "@/components/SubmitButton";
 import { auth } from "@/lib/auth";
 import {
   loginWithPasswordAction,
-  requestMagicLinkAction,
   resendVerificationAction,
 } from "@/lib/auth/actions";
 import { describeAuthFailure, type AuthFailure } from "@/lib/auth/passwordAuth";
@@ -20,16 +19,15 @@ import { describeAuthFailure, type AuthFailure } from "@/lib/auth/passwordAuth";
 /**
  * Inloggning med adress och lösenord.
  *
- * **Magisk länk ligger kvar som reserv**, men nedtonad och längst ned. Den tas
- * bort först när lösenordsvägen körts skarpt i produktion — att riva ut den
- * enda fungerande vägen in innan ersättningen är bevisad vore att sätta sig
- * själv i en situation ingen kan ta sig ur.
+ * **Magisk länk är borttagen 2026-08-08.** Skälet var konkret: samma dag
+ * spärrade Chrome en av tjänstens egna inloggningslänkar som "Farlig
+ * webbplats". Formen — ny domän, länk via mejl, lång hex-token, mejladress i
+ * klartext och en parameter som pekade vidare till en annan URL — är exakt hur
+ * nätfiske ser ut, och mot en klassificerare hjälper inga förklaringar.
  *
- * Skälet att den ska bort är konkret: 2026-08-08 spärrade Chrome en av
- * tjänstens magiska länkar som "Farlig webbplats". Formen — ny domän, länk via
- * mejl, lång hex-token, mejladress i klartext och en parameter som pekar
- * vidare till en annan URL — är exakt hur nätfiske ser ut. Med lösenord skickas
- * inget mejl alls vid inloggning.
+ * Med lösenord skickas inget mejl alls vid inloggning. Kvar är verifiering vid
+ * registrering och återställning, som båda är sällsynta och bär en länk utan
+ * vare sig adress eller vidarepekare.
  */
 
 export const dynamic = "force-dynamic";
@@ -37,7 +35,6 @@ export const dynamic = "force-dynamic";
 interface LoginPageProps {
   searchParams: Promise<{
     fel?: string;
-    skickat?: string;
     nekad?: string;
     verifiering?: string;
   }>;
@@ -50,17 +47,10 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
     redirect("/dashboard");
   }
 
-  const { fel, skickat, nekad, verifiering } = await searchParams;
+  const { fel, nekad, verifiering } = await searchParams;
 
   return (
     <AuthCard rubrik="Logga in">
-      {skickat ? (
-        <AuthNotice>
-          Inloggningslänken är skickad och gäller i 24 timmar. Hittar du den
-          inte i inkorgen, titta i skräpposten.
-        </AuthNotice>
-      ) : null}
-
       {verifiering ? (
         <AuthNotice>
           Finns det ett obekräftat konto på adressen har vi skickat en ny
@@ -68,9 +58,9 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
         </AuthNotice>
       ) : null}
 
-      {/* Auth.js skickar hit när registreringsspärren nekat en ny användare.
-          Texten säger med flit inte vilket läge som gäller — det är
-          driftinformation, inte något besökaren kan agera på. */}
+      {/* Registreringsspärren nekade en ny användare. Texten säger med flit
+          inte vilket läge som gäller — det är driftinformation, inte något
+          besökaren kan agera på. */}
       {nekad ? (
         <p className="mt-6 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200">
           Tjänsten tar just nu inte emot nya konton. Har du redan ett konto
@@ -130,32 +120,6 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
           </SubmitButton>
         </form>
       ) : null}
-
-      <details className="mt-8 border-t border-zinc-200 pt-6 dark:border-zinc-800">
-        <summary className="cursor-pointer text-sm text-zinc-500 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200">
-          Logga in med en länk i stället
-        </summary>
-        <form action={requestMagicLinkAction} className="mt-4 space-y-3">
-          <input
-            type="email"
-            name="email"
-            required
-            autoComplete="email"
-            placeholder="namn@foretag.se"
-            className="block h-10 w-full rounded-lg border border-zinc-300 bg-white px-3 text-sm text-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
-          />
-          <SubmitButton
-            pendingLabel="Skickar..."
-            className="h-10 w-full rounded-lg border border-zinc-300 bg-white px-4 text-sm font-medium text-zinc-900 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-50 dark:hover:bg-zinc-900"
-          >
-            Skicka inloggningslänk
-          </SubmitButton>
-          <p className="text-xs text-zinc-500 dark:text-zinc-400">
-            Den här vägen tas bort inom kort. Vissa webbläsare varnar för
-            inloggningslänkar i mejl, eftersom formen liknar nätfiske.
-          </p>
-        </form>
-      </details>
 
       <p className="mt-8 text-xs text-zinc-500 dark:text-zinc-400">
         Genom att logga in godtar du att vi behandlar din mejladress och dina
