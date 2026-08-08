@@ -46,15 +46,25 @@ function readSharedStrings(xml: string | undefined): string[] {
     );
 }
 
+interface SheetRef {
+  name: string;
+  path: string;
+}
+
 /**
- * Hittar det första kalkylbladet via arkivets relationer i stället för att
- * anta `xl/worksheets/sheet1.xml`.
+ * Alla blad i arbetsboken, i den ordning flikarna står i Excel.
  *
- * Filnamnet stämmer oftast, men inte när blad har raderats eller när filen
- * skrivits av något annat än Excel — och då pekar antagandet på fel blad eller
- * på ingenting alls.
+ * Sökvägarna hämtas ur arkivets relationer i stället för att anta
+ * `xl/worksheets/sheet1.xml`. Filnamnet stämmer oftast, men inte när blad har
+ * raderats eller när filen skrivits av något annat än Excel — och då pekar
+ * antagandet på fel blad eller på ingenting alls.
+ *
+ * Tidigare togs bara det första bladet. Det är rätt gissning nästan alltid och
+ * helt fel de gånger det inte är det: en användare vars lista ligger i flik två
+ * fick beskedet "Filen innehåller inga rader" om en fil som uppenbart innehöll
+ * 200 bolag. Ett besked som är både sant och obegripligt.
  */
-function resolveFirstSheetPath(files: Map<string, Buffer>): string {
+function resolveSheets(files: Map<string, Buffer>): SheetRef[] {
   const workbook = files.get("xl/workbook.xml")?.toString("utf8");
   const rels = files
     .get("xl/_rels/workbook.xml.rels")
@@ -62,59 +72,60 @@ function resolveFirstSheetPath(files: Map<string, Buffer>): string {
 
   if (workbook && rels) {
     const $workbook = cheerio.load(workbook, { xml: true });
-    const relationshipId = $workbook("sheet").first().attr("r:id");
+    const $rels = cheerio.load(rels, { xml: true });
 
-    if (relationshipId) {
-      const $rels = cheerio.load(rels, { xml: true });
-      const target = $rels(`Relationship[Id="${relationshipId}"]`).attr(
-        "Target",
-      );
+    const resolved = $workbook("sheet")
+      .toArray()
+      .map((element, index): SheetRef | null => {
+        const relationshipId = $workbook(element).attr("r:id");
+        const name = $workbook(element).attr("name") ?? `Blad ${index + 1}`;
 
-      if (target) {
-        const normalized = target.replace(/^\/?(xl\/)?/, "");
-        const candidate = `xl/${normalized}`;
-
-        if (files.has(candidate)) {
-          return candidate;
+        if (!relationshipId) {
+          return null;
         }
-      }
+
+        const target = $rels(`Relationship[Id="${relationshipId}"]`).attr(
+          "Target",
+        );
+
+        if (!target) {
+          return null;
+        }
+
+        const path = `xl/${target.replace(/^\/?(xl\/)?/, "")}`;
+
+        return files.has(path) ? { name, path } : null;
+      })
+      .filter((sheet): sheet is SheetRef => sheet !== null);
+
+    if (resolved.length > 0) {
+      return resolved;
     }
   }
 
+  // Reservvägen: filnamnen direkt ur arkivet. Sorteringen måste vara numerisk —
+  // `sheet10.xml` sorteras före `sheet2.xml` som text, och då byter flikarna
+  // plats mot vad användaren ser i Excel.
   const fallback = [...files.keys()]
     .filter((name) => name.startsWith("xl/worksheets/") && name.endsWith(".xml"))
-    .sort()[0];
+    .sort((left, right) =>
+      left.localeCompare(right, "sv", { numeric: true }),
+    )
+    .map((path, index) => ({ name: `Blad ${index + 1}`, path }));
 
-  if (!fallback) {
+  if (fallback.length === 0) {
     throw new XlsxError("Hittade inget kalkylblad i filen.");
   }
 
   return fallback;
 }
 
-export function parseXlsx(buffer: Buffer): string[][] {
-  let files: Map<string, Buffer>;
+export interface XlsxSheet {
+  name: string;
+  rows: string[][];
+}
 
-  try {
-    files = unzip(buffer);
-  } catch (error) {
-    if (error instanceof ZipError) {
-      throw new XlsxError(error.message, { cause: error });
-    }
-
-    throw new XlsxError("Kunde inte läsa Excel-filen.", { cause: error });
-  }
-
-  const sharedStrings = readSharedStrings(
-    files.get("xl/sharedStrings.xml")?.toString("utf8"),
-  );
-
-  const sheetXml = files.get(resolveFirstSheetPath(files))?.toString("utf8");
-
-  if (!sheetXml) {
-    throw new XlsxError("Kalkylbladet är tomt eller oläsbart.");
-  }
-
+function readSheetRows(sheetXml: string, sharedStrings: string[]): string[][] {
   const $ = cheerio.load(sheetXml, { xml: true });
   const rows: string[][] = [];
 
@@ -158,4 +169,48 @@ export function parseXlsx(buffer: Buffer): string[][] {
   });
 
   return rows.filter((row) => row.some((cell) => cell.trim().length > 0));
+}
+
+/** Alla blad med innehåll, i flikordning. */
+export function parseXlsxSheets(buffer: Buffer): XlsxSheet[] {
+  let files: Map<string, Buffer>;
+
+  try {
+    files = unzip(buffer);
+  } catch (error) {
+    if (error instanceof ZipError) {
+      throw new XlsxError(error.message, { cause: error });
+    }
+
+    throw new XlsxError("Kunde inte läsa Excel-filen.", { cause: error });
+  }
+
+  const sharedStrings = readSharedStrings(
+    files.get("xl/sharedStrings.xml")?.toString("utf8"),
+  );
+
+  const sheets = resolveSheets(files)
+    .map((sheet) => {
+      const xml = files.get(sheet.path)?.toString("utf8");
+
+      return {
+        name: sheet.name,
+        rows: xml ? readSheetRows(xml, sharedStrings) : [],
+      };
+    })
+    // Tomma flikar filtreras bort i stället för att visas i bladväljaren. En
+    // ny arbetsbok i Excel kommer med tre flikar varav två alltid är tomma, och
+    // att erbjuda dem som val är att erbjuda ett fel.
+    .filter((sheet) => sheet.rows.length > 0);
+
+  if (sheets.length === 0) {
+    throw new XlsxError("Kalkylbladet är tomt eller oläsbart.");
+  }
+
+  return sheets;
+}
+
+/** Första bladet med innehåll. Kvar för anropare som inte bryr sig om flikar. */
+export function parseXlsx(buffer: Buffer): string[][] {
+  return parseXlsxSheets(buffer)[0].rows;
 }

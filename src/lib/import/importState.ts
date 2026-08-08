@@ -1,4 +1,5 @@
 import type { ImportPreview } from "@/lib/import/buildImportPreview";
+import type { ColumnChoice } from "@/lib/import/sheetShape";
 
 /**
  * Formulärtillstånden för importen — typerna och deras utgångsvärden.
@@ -14,28 +15,46 @@ import type { ImportPreview } from "@/lib/import/buildImportPreview";
  * Så det här är inte städning. Det är den enda platsen `EMPTY_*` kan bo.
  */
 
+export interface SheetChoice {
+  index: number;
+  name: string;
+  rowCount: number;
+}
+
 export interface PreviewState {
   status: "idle" | "ready" | "error";
   error: string | null;
-  /** Rubrikraden, för kolumnväljaren. */
-  headers: string[];
+  /** Kolumnerna att välja mellan, med rubrik och ett exempelvärde. */
+  columns: ColumnChoice[];
   columnIndex: number;
   hasHeaderRow: boolean;
+  /**
+   * Sant när kolumnen och rubrikraden är tjänstens gissning och inte
+   * användarens val. Styr om granskningen ska berätta vad den antog — ett
+   * antagande som inte syns går inte att rätta.
+   */
+  autoDetected: boolean;
+  /** Flikar med innehåll. En post för CSV, flera för en Excel-arbetsbok. */
+  sheets: SheetChoice[];
+  sheetIndex: number;
   preview: ImportPreview | null;
-  /** Filens rader, så att kolumnbytet inte kräver att filen laddas upp igen. */
-  rows: string[][];
   fileName: string | null;
+  /** Rader som inte fick plats i granskningen. Noll i normalfallet. */
+  droppedRows: number;
 }
 
 export const EMPTY_PREVIEW_STATE: PreviewState = {
   status: "idle",
   error: null,
-  headers: [],
+  columns: [],
   columnIndex: 0,
   hasHeaderRow: true,
+  autoDetected: true,
+  sheets: [],
+  sheetIndex: 0,
   preview: null,
-  rows: [],
   fileName: null,
+  droppedRows: 0,
 };
 
 export interface CommitState {

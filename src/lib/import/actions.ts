@@ -6,10 +6,7 @@ import {
   describePortfolioLimit,
   getPortfolioCapacity,
 } from "@/lib/companies/portfolioLimit";
-import {
-  buildImportPreview,
-  guessNameColumn,
-} from "@/lib/import/buildImportPreview";
+import { buildImportPreview } from "@/lib/import/buildImportPreview";
 import {
   EMPTY_COMMIT_STATE,
   EMPTY_PREVIEW_STATE,
@@ -18,7 +15,13 @@ import {
 } from "@/lib/import/importState";
 import { cleanImportedName, companyMatchKey } from "@/lib/import/normalizeCompanyName";
 import { parseCsv } from "@/lib/import/parseCsv";
-import { parseXlsx, XlsxError } from "@/lib/import/parseXlsx";
+import { parseXlsxSheets, XlsxError, type XlsxSheet } from "@/lib/import/parseXlsx";
+import {
+  buildColumnChoices,
+  detectHeaderRow,
+  detectNameColumn,
+  pickBestSheet,
+} from "@/lib/import/sheetShape";
 import { prisma } from "@/lib/prisma";
 
 /**
@@ -43,6 +46,18 @@ const MAX_FILE_BYTES = 2 * 1024 * 1024;
  */
 const MAX_IMPORT_ROWS = 500;
 
+/**
+ * Tak för hur många rader granskningen visar.
+ *
+ * Inte en gräns för hur stor fil som får läsas, utan för hur stort svar som
+ * skickas tillbaka till webbläsaren: varje rad reser med namn, status och skäl.
+ * En fil på tiotusen rader hade gjort svaret flera megabyte, och en tabell
+ * ingen ändå scrollar igenom. Att raderna föll bort **sägs rakt ut** i
+ * granskningen — en tyst avkortning ser ut som att filen var mindre än den var,
+ * och det är precis den sortens fel den här sidan finns för att förhindra.
+ */
+const MAX_PREVIEW_ROWS = 1_000;
+
 // Tillstånden och deras utgångsvärden ligger i `importState.ts`. En
 // `"use server"`-fil får bara exportera asynkrona funktioner — se den filen för
 // vad det kostade att ha dem här.
@@ -51,9 +66,9 @@ function errorState(message: string): PreviewState {
   return { ...EMPTY_PREVIEW_STATE, status: "error", error: message };
 }
 
-async function readRowsFromFile(
+async function readSheetsFromFile(
   file: File,
-): Promise<{ rows: string[][] } | { error: string }> {
+): Promise<{ sheets: XlsxSheet[] } | { error: string }> {
   if (file.size === 0) {
     return { error: "Filen är tom." };
   }
@@ -67,11 +82,14 @@ async function readRowsFromFile(
 
   try {
     if (name.endsWith(".xlsx")) {
-      return { rows: parseXlsx(buffer) };
+      return { sheets: parseXlsxSheets(buffer) };
     }
 
     if (name.endsWith(".csv") || name.endsWith(".tsv") || name.endsWith(".txt")) {
-      return { rows: parseCsv(buffer.toString("utf8")) };
+      // En textfil har inga flikar, men resten av flödet vill ha samma form.
+      const rows = parseCsv(buffer.toString("utf8"));
+
+      return { sheets: [{ name: file.name, rows }] };
     }
 
     // `.xls` är ett helt annat, binärt format — inte en zip med XML. Att låtsas
@@ -94,6 +112,26 @@ async function readRowsFromFile(
   }
 }
 
+/**
+ * Läser ett heltalsfält som användaren kan ha ändrat, eller `null` när fältet
+ * inte fanns i formuläret alls.
+ *
+ * Skillnaden är inte formell. Fältet saknas vid första uppladdningen, och då
+ * ska tjänsten gissa. Fältet finns men är oförändrat betyder att användaren
+ * sett gissningen och låtit den stå — också ett val, och det ska respekteras.
+ */
+function readChoice(formData: FormData, field: string): number | null {
+  const raw = formData.get(field);
+
+  if (typeof raw !== "string" || raw.length === 0) {
+    return null;
+  }
+
+  const parsed = Number(raw);
+
+  return Number.isInteger(parsed) && parsed >= 0 ? parsed : null;
+}
+
 async function existingCompanyNames(userId: string): Promise<string[]> {
   const companies = await prisma.company.findMany({
     where: { userId },
@@ -106,10 +144,18 @@ async function existingCompanyNames(userId: string): Promise<string[]> {
 /**
  * Läser filen och räknar ut vad en import skulle göra. Skriver ingenting.
  *
- * Anropas om vid kolumnbyte, och då skickas raderna tillbaka i formuläret i
- * stället för filen. Att kräva en ny uppladdning för att byta kolumn vore ett
- * onödigt hinder i just det ögonblick användaren upptäckt att gissningen var
- * fel.
+ * Anropas om varje gång användaren byter blad, kolumn eller rubrikinställning,
+ * och läser då om filen från början.
+ *
+ * **Varför filen läses om i stället för att raderna skickas fram och tillbaka.**
+ * Tidigare cachades hela rutnätet som JSON i ett dolt fält, för att slippa
+ * ladda upp igen vid ett kolumnbyte. Det var gratis för en liten fil och en
+ * tickande bomb för en stor: en fil nära taket på 2 MB blir långt mer än så som
+ * JSON, och serveråtgärder har en storleksgräns på begäran. Kolumnbytet hade
+ * alltså slutat fungera exakt för de filer där kolumnvalet är svårast.
+ *
+ * Klienten skickar med samma fil varje gång, så omläsningen kostar användaren
+ * ingenting — inget nytt filval, ingen förlorad plats.
  */
 export async function previewImport(
   _previous: PreviewState,
@@ -117,59 +163,63 @@ export async function previewImport(
 ): Promise<PreviewState> {
   const userId = await getRequiredUserId();
 
-  const requestedColumn = Number(formData.get("columnIndex"));
+  const file = formData.get("file");
 
-  // En avmarkerad kryssruta skickas inte alls, så frånvaro betyder två olika
-  // saker: "fältet fanns inte i formuläret" (första uppladdningen, default på)
-  // och "användaren kryssade ur den". Markören skiljer fallen åt — utan den
-  // går rubrikraden aldrig att slå av.
-  const headerFieldWasPresent = formData.get("hasHeaderRowPresent") === "1";
-  const hasHeaderRow = headerFieldWasPresent
-    ? formData.get("hasHeaderRow") === "true"
-    : true;
-
-  const cachedRows = formData.get("rows");
-
-  let rows: string[][];
-  let fileName: string | null = null;
-
-  if (typeof cachedRows === "string" && cachedRows.length > 0) {
-    try {
-      rows = JSON.parse(cachedRows) as string[][];
-    } catch {
-      return errorState("Kunde inte läsa om filen. Ladda upp den igen.");
-    }
-
-    const cachedName = formData.get("fileName");
-    fileName = typeof cachedName === "string" ? cachedName : null;
-  } else {
-    const file = formData.get("file");
-
-    if (!(file instanceof File)) {
-      return errorState("Välj en fil att importera.");
-    }
-
-    const result = await readRowsFromFile(file);
-
-    if ("error" in result) {
-      return errorState(result.error);
-    }
-
-    rows = result.rows;
-    fileName = file.name;
+  if (!(file instanceof File) || file.size === 0) {
+    return errorState("Välj en fil att importera.");
   }
+
+  const parsed = await readSheetsFromFile(file);
+
+  if ("error" in parsed) {
+    return errorState(parsed.error);
+  }
+
+  const { sheets } = parsed;
+
+  // Bladet först: kolumnen och rubrikraden hör till ett visst blad, och att
+  // avgöra dem innan man vet vilket blad det gäller är att avgöra dem om fel
+  // sak.
+  const requestedSheet = readChoice(formData, "sheetIndex");
+  const sheetIndex =
+    requestedSheet !== null && requestedSheet < sheets.length
+      ? requestedSheet
+      : pickBestSheet(sheets);
+
+  // Byter användaren blad är kolumnvalet från förra bladet inte längre ett val
+  // utan ett arv. Bättre att gissa om från det nya bladets innehåll än att
+  // troget tillämpa ett tal som betydde något annat.
+  const sheetChanged = readChoice(formData, "renderedSheetIndex") !== sheetIndex;
+
+  const allRows = sheets[sheetIndex].rows;
+  const rows = allRows.slice(0, MAX_PREVIEW_ROWS);
+  const droppedRows = allRows.length - rows.length;
 
   if (rows.length === 0) {
     return errorState("Filen innehåller inga rader.");
   }
 
-  const headers = rows[0] ?? [];
+  // En avmarkerad kryssruta skickas inte alls, så frånvaro betyder två olika
+  // saker: "fältet fanns inte i formuläret" (första uppladdningen) och
+  // "användaren kryssade ur den". Markören skiljer fallen åt — utan den går
+  // rubrikraden aldrig att slå av.
+  const headerFieldWasPresent =
+    !sheetChanged && formData.get("hasHeaderRowPresent") === "1";
+  const hasHeaderRow = headerFieldWasPresent
+    ? formData.get("hasHeaderRow") === "true"
+    : detectHeaderRow(rows);
+
+  const columns = buildColumnChoices(rows, hasHeaderRow);
+  const requestedColumn = sheetChanged ? null : readChoice(formData, "columnIndex");
+
+  // Kontrollen går mot kolumnernas `index`, inte mot listans längd: tomma
+  // kolumner är bortfiltrerade ur menyn, så plats tre i listan kan vara kolumn
+  // sju i filen. En längdjämförelse hade tyst kastat användarens val.
   const columnIndex =
-    Number.isInteger(requestedColumn) &&
-    requestedColumn >= 0 &&
-    requestedColumn < headers.length
+    requestedColumn !== null &&
+    columns.some((column) => column.index === requestedColumn)
       ? requestedColumn
-      : guessNameColumn(headers);
+      : detectNameColumn(rows, hasHeaderRow);
 
   const preview = buildImportPreview({
     rows,
@@ -181,12 +231,19 @@ export async function previewImport(
   return {
     status: "ready",
     error: null,
-    headers,
+    columns,
     columnIndex,
     hasHeaderRow,
+    autoDetected: !headerFieldWasPresent || requestedColumn === null,
+    sheets: sheets.map((sheet, index) => ({
+      index,
+      name: sheet.name,
+      rowCount: sheet.rows.length,
+    })),
+    sheetIndex,
     preview,
-    rows,
-    fileName,
+    fileName: file.name,
+    droppedRows,
   };
 }
 

@@ -1,8 +1,9 @@
+import { headerHintColumn } from "@/lib/import/sheetShape";
 import {
+  classifyNonCompanyValue,
   cleanImportedName,
   companyMatchKey,
-  isPlausibleCompanyName,
-  looksLikeHeaderOrTotal,
+  type NonCompanyReason,
 } from "@/lib/import/normalizeCompanyName";
 
 /**
@@ -49,6 +50,26 @@ const REASONS: Record<ImportRowStatus, string> = {
 };
 
 /**
+ * Skälet i klartext, och alltid vad som *observerats* — inte vad tjänsten
+ * beslutat.
+ *
+ * "Ser inte ut som ett bolagsnamn" på rad 87 av 150 är obrukbart: användaren
+ * kan inte avgöra om raden är skräp eller om kolumnvalet är fel. "Ser ut som
+ * ett organisationsnummer" på trettio rader i rad säger direkt vad som hänt,
+ * och vad man ska göra åt det.
+ */
+const NON_COMPANY_REASONS: Record<NonCompanyReason, string> = {
+  header: "Ser ut som en rubrik- eller summeringsrad.",
+  email: "Ser ut som en e-postadress — kanske är det fel kolumn?",
+  url: "Ser ut som en webbadress — kanske är det fel kolumn?",
+  phone: "Ser ut som ett telefonnummer — kanske är det fel kolumn?",
+  orgnr: "Ser ut som ett organisationsnummer — kanske är det fel kolumn?",
+  number: "Innehåller bara siffror — kanske är det fel kolumn?",
+  date: "Ser ut som ett datum — kanske är det fel kolumn?",
+  "no-tokens": "Ser inte ut som ett bolagsnamn.",
+};
+
+/**
  * Rubrikraden hoppas alltid över när `hasHeaderRow` är satt, men *dessutom*
  * kontrolleras varje rad mot kända rubrikord. Filer från CRM har ofta en
  * rubrikrad mitt i, en per exporterad grupp, och den som inte upptäcks blir en
@@ -74,32 +95,40 @@ export function buildImportPreview(options: {
     const name = cleanImportedName(raw);
     const lineNumber = index + lineOffset;
 
-    const decide = (): ImportRowStatus => {
+    const decide = (): { status: ImportRowStatus; reason: string } => {
       if (name.length === 0) {
-        return "empty";
+        return { status: "empty", reason: REASONS.empty };
       }
 
-      if (looksLikeHeaderOrTotal(name) || !isPlausibleCompanyName(name)) {
-        return "implausible";
+      const nonCompany = classifyNonCompanyValue(name);
+
+      if (nonCompany) {
+        return {
+          status: "implausible",
+          reason: NON_COMPANY_REASONS[nonCompany],
+        };
       }
 
       const key = companyMatchKey(name);
 
       if (existingKeys.has(key)) {
-        return "already-watched";
+        return { status: "already-watched", reason: REASONS["already-watched"] };
       }
 
       if (seenInFile.has(key)) {
-        return "duplicate-in-file";
+        return {
+          status: "duplicate-in-file",
+          reason: REASONS["duplicate-in-file"],
+        };
       }
 
       seenInFile.add(key);
-      return "ok";
+      return { status: "ok", reason: REASONS.ok };
     };
 
-    const status = decide();
+    const { status, reason } = decide();
 
-    return { lineNumber, raw, name, status, reason: REASONS[status] };
+    return { lineNumber, raw, name, status, reason };
   });
 
   const counts: Record<ImportRowStatus, number> = {
@@ -129,40 +158,10 @@ export function buildImportPreview(options: {
  * en förvald kolumn som oftast stämmer är skillnaden mellan ett formulär och
  * ett arbetsmoment.
  */
-const HEADER_HINTS = [
-  "företagsnamn",
-  "bolagsnamn",
-  "kundnamn",
-  "företag",
-  "bolag",
-  "kund",
-  "company",
-  "customer",
-  "account",
-  "namn",
-  "name",
-];
-
 export function guessNameColumn(headerRow: readonly string[]): number {
-  const normalized = headerRow.map((cell) => cell.trim().toLowerCase());
-
-  for (const hint of HEADER_HINTS) {
-    const exact = normalized.indexOf(hint);
-
-    if (exact !== -1) {
-      return exact;
-    }
-  }
-
-  // Delträff är sämre än exakt men bättre än att gissa kolumn noll: en export
-  // med "Kundnamn (juridiskt)" ska hittas.
-  for (const hint of HEADER_HINTS) {
-    const partial = normalized.findIndex((cell) => cell.includes(hint));
-
-    if (partial !== -1) {
-      return partial;
-    }
-  }
-
-  return 0;
+  // Kvar som tunn omslagning: noll är svaret när rubriken inte säger något, och
+  // den som frågar efter en kolumn behöver ett tal. Själva listan med rubrikord
+  // bor i `sheetShape.ts`, tillsammans med den strängare varianten som avgör om
+  // rad 1 alls är en rubrik.
+  return headerHintColumn(headerRow) ?? 0;
 }
