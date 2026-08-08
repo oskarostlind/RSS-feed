@@ -18,9 +18,20 @@ redan betalar för. Koden brydde sig aldrig; `transport.ts` väljer SMTP så for
 ett skarpt utskick accepterat med id på `@kundnytt.se`. SPF ligger ute som
 `v=spf1 redirect=_spf.strato.com`.
 
-**Inte klart:** SMTP-accept är inte leverans. Exakt det felet kostade 7 augusti
-— Resend sa `delivered` och Gmail kastade mejlen ändå. Punkten är öppen tills
-ett mejl setts i en inkorg.
+**Bekräftat 16:14:** mejlet landade i Gmails **Primär**-flik. Inte skräppost,
+inte Kampanjer. Första gången tjänsten levererat till en inkorg från egen
+domän, och det som blockerat allt sedan 7 augusti. **§9.8 är stängd.**
+
+Att jag krävde ett öga och inte nöjde mig med API-svaret var hela poängen: 7
+augusti sa Resend `delivered` för varje inloggningsmejl medan Gmail kastade dem
+utan att lägga dem i någon mapp.
+
+**Kvar att prova:** ett skarpt *inloggningsmejl*. Samma avsändare och transport,
+men det var inloggningslänkarna specifikt Gmail bedömde som nätfiske.
+Morgonmejlet som går fram är starkt stöd, inte bevis.
+
+**Klockan går nu.** Kriterium 2 kräver sju dygn i rad och räkningen började
+2026-08-08. Tidigaste lansering är därmed 2026-08-15.
 
 **Fälla som är värd att komma ihåg:** Stratos standard-DMARC är `p=reject`, inte
 `p=none`. Rätt nu, men den dagen utskicken byter leverantör slutar all post

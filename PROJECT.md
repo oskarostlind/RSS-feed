@@ -323,11 +323,19 @@ publicerad (`v=spf1 redirect=_spf.strato.com`). `/api/debug/email-test` svarar
 `vag: smtp` och `verifieradDoman: true`, och ett skarpt utskick accepterades med
 ett meddelande-id på `@kundnytt.se`.
 
-**Men SMTP-accept är inte leverans.** Det var precis det felet som kostade
-2026-08-07: Resend rapporterade `delivered` för varje inloggningsmejl, och
-Gmail hade ändå kastat dem utan att lägga dem i någon mapp. Punkten räknas som
-klar först när ett mejl setts i en inkorg — och det bästa provet är fortfarande
-att logga ut och begära en ny inloggningslänk.
+**Och leveransen är bekräftad.** 2026-08-08 16:14 landade morgonsammanfattningen
+i Gmails **Primär**-flik — inte i skräpposten, inte under Kampanjer. Det är
+första gången tjänsten levererat till en inkorg från egen domän, och skillnaden
+mot 2026-08-07 är hela poängen: då rapporterade Resend `delivered` för varje
+inloggningsmejl medan Gmail kastade dem utan att lägga dem i någon mapp.
+SMTP-accept är inte leverans, och det är därför den här punkten krävde ett öga
+och inte ett API-svar.
+
+**Kvar att prova:** ett skarpt *inloggningsmejl*. Morgonmejlet och
+inloggningslänken har samma avsändare och samma transport, men det var
+inloggningsmejlen specifikt som Gmail bedömde som nätfiske — en länk som loggar
+in är precis det mönstret. Att morgonmejlet går fram är starkt stöd, inte
+bevis.
 
 **DMARC står på `p=reject`.** Det är Stratos standardregel, och den är
 strängare än de `p=none` checklistan tidigare föreslog. Rätt så länge vi bara
@@ -553,8 +561,8 @@ det mesta på den kan göras efter lansering. Detta kan det inte.
 
 | # | Hinder | Vem löser | Kan lanseras utan? |
 |---|---|---|---|
-| 1 | ~~Verifierad mejldomän (§9.8)~~ | **Byggt 2026-08-08**, Strato-SMTP | Bekräfta inkorgsleverans först |
-| 2 | Kriterium 2 — sju dygn i rad (§4) | Tid, efter 1 | **Nej.** Fas 1 är inte belagd förrän det är mätt |
+| 1 | ~~Verifierad mejldomän (§9.8)~~ | **Klart 2026-08-08.** Leverans bekräftad | — |
+| 2 | Kriterium 2 — sju dygn i rad (§4) | Tid. **Räkningen börjar 2026-08-08** | **Nej.** Fas 1 är inte belagd förrän det är mätt |
 | 3 | ~~Kapaciteten räcker för fler än ett konto (§6)~~ | **Byggt 2026-08-08.** Fan-out, se §6 | Sätt `DISCOVERY_SHARDS` före lansering |
 | 4 | Beslut om registreringsläge (§9.18) | Oskar | Nej, men det är ett beslut på fem sekunder |
 | 5 | En källa som inte är Google eller Bing (§7) | Kod, blockerad av Bolagsverket | Ja, med risk |
@@ -569,10 +577,10 @@ Vercel, inte av att fan-out är byggd. Det är avsiktligt — arkitekturen ska
 mätas innan den blir varje morgons väg — men det betyder att punkten inte är
 avbockad förrän variabeln är satt.
 
-**Punkt 2 kan inte skyndas.** Sju dygn är sju dygn, och räkningen börjar om
-varje gång databasen byts. Den börjar först när punkt 1 är klar, så den sätter
-golvet för när en lansering kan ske: **en vecka efter att mejldomänen
-verifierats**, inte tidigare.
+**Punkt 2 kan inte skyndas, och den är nu den enda klockan som går.** Sju dygn
+är sju dygn, och räkningen börjar om varje gång databasen byts. Punkt 1 blev
+klar 2026-08-08, så **tidigaste lansering är 2026-08-15** — och bara om varje
+morgon däremellan går igenom utan manuell inblandning.
 
 
 
@@ -600,10 +608,9 @@ verifierats**, inte tidigare.
    vilket en automatisk körning inte kan göra. Parsningen är verifierad i
    produktionsmiljön via `/api/debug/import-test`, men själva formuläret har
    ingen människa provat
-8. ~~**Verifierad mejldomän**~~ — **byggt 2026-08-08.** Strato-brevlåda på egen
-   domän över SMTP, SPF publicerad, skarpt utskick accepterat. Brevo valdes
-   bort. **Kvar: bekräfta att ett mejl faktiskt landar i en inkorg** — SMTP-
-   accept är inte leverans, se avsnitt 6
+8. ~~**Verifierad mejldomän**~~ — **klart 2026-08-08.** Strato-brevlåda på egen
+   domän över SMTP, SPF publicerad, och **leverans bekräftad i Gmails
+   Primär-flik 16:14**. Brevo valdes bort. Se avsnitt 6
 9. ~~Mät GNews täckning över flera **lokala** bolag och slå av den om bilden
    håller~~ — **klart 2026-08-07.** Mätt över åtta bolag, GNews avstängd som
    standard. Se avsnitt 7
